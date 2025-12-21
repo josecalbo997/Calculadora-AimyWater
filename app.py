@@ -1,6 +1,50 @@
 import streamlit as st
 
 # ==============================================================================
+# 0. CONFIGURACIÓN DE PÁGINA
+# ==============================================================================
+st.set_page_config(
+    page_title="AimyWater Calculator",
+    page_icon="💧",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- ESTILOS CSS CORPORATIVOS (BRANDING AIMYWATER) ---
+st.markdown("""
+    <style>
+    /* Ocultar menú de Streamlit */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Estilo Tarjetas Métricas */
+    div[data-testid="stMetric"] {
+        background-color: #f4f9fd; /* Azul muy pálido */
+        border: 1px solid #dbebf9;
+        padding: 15px;
+        border-radius: 10px;
+        color: #003366; /* Azul oscuro corporativo */
+    }
+    
+    /* Botón principal */
+    div.stButton > button:first-child {
+        background-color: #004d99; /* Azul AimyWater */
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        width: 100%;
+        border: none;
+    }
+    div.stButton > button:first-child:hover {
+        background-color: #003366;
+        border: 2px solid #00aaff;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ==============================================================================
 # 1. BASE DE DATOS Y CLASES
 # ==============================================================================
 
@@ -22,7 +66,7 @@ class Descalcificador:
         self.sal_por_regen_kg = sal_por_regen_kg
         self.tipo = tipo
 
-# Catálogos
+# Catálogos AimyWater
 catalogo_ro = [
     EquipoRO("Doméstico", "PURHOME PLUS", 300, 3000, 0.50, 0.03),
     EquipoRO("Doméstico", "DF 800 UV-LED", 3000, 1500, 0.71, 0.08),
@@ -49,7 +93,6 @@ catalogo_descal = [
 
 def calcular_todo(consumo_diario, ppm, dureza, temp, horas_punta, coste_agua_m3, coste_sal_kg, coste_kwh):
     
-    # Factor Temp
     tcf = 1.0 if temp >= 25 else max(1.0 - ((25 - temp) * 0.03), 0.1)
     
     # RO
@@ -129,72 +172,107 @@ def calcular_todo(consumo_diario, ppm, dureza, temp, horas_punta, coste_agua_m3,
         if caudal_demanda > datos_flow['caudal_produccion_lh']:
             deficit = caudal_demanda - datos_flow['caudal_produccion_lh']
             logistica["tanque"] = deficit * horas_punta * 1.2
-            logistica["msg"] = f"⚠️ La máquina no cubre la punta de consumo ({int(caudal_demanda)} L/h)."
+            logistica["msg"] = f"⚠️ Déficit de caudal ({int(caudal_demanda - datos_flow['caudal_produccion_lh'])} L/h)"
         else:
             logistica["tanque"] = 0
-            logistica["msg"] = "✅ Producción directa suficiente."
+            logistica["msg"] = "✅ Caudal directo OK"
 
     return ro_sel, descal_sel, datos_flow, opex, logistica
 
 # ==============================================================================
-# 3. INTERFAZ WEB (STREAMLIT)
+# 3. INTERFAZ WEB PROFESIONAL
 # ==============================================================================
 
-st.set_page_config(page_title="GuruWater Genius", page_icon="💧", layout="wide")
+# --- HEADER CON LOGO AIMYWATER ---
+col_logo, col_title = st.columns([1, 4])
 
-st.title("💧 GuruWater: Calculadora de Ingeniería V7.0")
-st.markdown("**Versión Genius: Técnica + Económica + Logística**")
+with col_logo:
+    # Aquí cargamos el logo. IMPORTANTE: El archivo debe llamarse 'logo.png'
+    try:
+        st.image("logo.png", width=180)
+    except:
+        st.error("Sube logo.png")
 
+with col_title:
+    st.title("AimyWater Smart Select")
+    st.markdown("**Herramienta de Dimensionamiento para Tratamiento de Aguas**")
+
+st.divider()
+
+# --- SIDEBAR ---
 with st.sidebar:
-    st.header("📋 Datos Técnicos")
-    litros = st.number_input("Consumo Diario (Litros)", 100, 30000, 2000, step=100)
-    ppm = st.number_input("TDS (ppm)", 50, 7000, 800)
-    dureza = st.number_input("Dureza (ºHf)", 0, 100, 35)
-    temp = st.slider("Temperatura Agua (ºC)", 5, 35, 15)
+    st.header("⚙️ Configuración")
     
-    st.header("💰 Datos Económicos")
-    horas_uso = st.slider("Horas de punta de consumo", 1, 24, 8)
-    coste_agua = st.number_input("Coste Agua (€/m3)", 0.0, 10.0, 1.5)
-    coste_sal = st.number_input("Coste Sal (€/kg)", 0.0, 5.0, 0.45)
-    coste_luz = st.number_input("Coste Luz (€/kWh)", 0.0, 1.0, 0.20)
+    with st.expander("1. Datos Hidráulicos", expanded=True):
+        litros = st.number_input("Consumo (L/día)", 100, 50000, 2000, step=100)
+        horas_uso = st.slider("Horas punta", 1, 24, 8)
+        
+    with st.expander("2. Calidad de Agua", expanded=True):
+        ppm = st.number_input("TDS (ppm)", 50, 8000, 800)
+        dureza = st.number_input("Dureza (ºHf)", 0, 100, 35)
+        temp = st.slider("Temperatura (ºC)", 5, 35, 15)
+        
+    with st.expander("3. Económico (€)"):
+        coste_agua = st.number_input("Agua (€/m3)", 0.0, 10.0, 1.5)
+        coste_sal = st.number_input("Sal (€/kg)", 0.0, 5.0, 0.45)
+        coste_luz = st.number_input("Luz (€/kWh)", 0.0, 1.0, 0.20)
     
-    btn = st.button("CALCULAR PROYECTO 🚀", type="primary")
+    st.markdown("---")
+    btn_calc = st.button("CALCULAR PROYECTO", use_container_width=True)
+    st.caption("Powered by AimyWater AI v9.0")
 
-if btn:
+# --- ÁREA PRINCIPAL ---
+
+if btn_calc:
     ro, descal, flow, opex, log = calcular_todo(litros, ppm, dureza, temp, horas_uso, coste_agua, coste_sal, coste_luz)
     
     if not ro:
-        st.error("❌ No se encontró solución estándar. Salinidad excesiva o caudal fuera de rango.")
+        st.error("❌ **NO VIABLE:** Sin equipos estándar para esta configuración.")
     else:
-        # PESTAÑAS
-        tab1, tab2, tab3 = st.tabs(["🛠️ Solución Técnica", "💸 Análisis Costes", "📦 Logística"])
+        # KPI ROW
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Equipo Principal", ro.nombre)
+        if descal:
+            k2.metric("Pre-tratamiento", descal[0].nombre)
+        else:
+            k2.metric("Pre-tratamiento", "No Requiere", "Agua Blanda")
+        k3.metric("OPEX Estimado", f"{opex['total']/365:.2f} €/día")
         
-        with tab1:
+        if log["tanque"] > 0:
+            k4.metric("Acumulación", f"{int(log['tanque'])} L", "Necesaria", delta_color="inverse")
+        else:
+            k4.metric("Acumulación", "Directo", "OK")
+
+        st.markdown("---")
+
+        # TABS
+        t1, t2, t3 = st.tabs(["🛠️ Ingeniería", "💰 Económico", "📦 Logística"])
+        
+        with t1:
             c1, c2 = st.columns(2)
             with c1:
-                st.success(f"**ÓSMOSIS: {ro.nombre}**")
-                st.write(f"- Producción Real ({temp}ºC): **{int(flow['prod_real_dia'])} L/día**")
-                st.write(f"- Eficiencia: {int(ro.eficiencia*100)}%")
+                st.info(f"**🔵 {ro.nombre}**")
+                st.write(f"Producción Real ({temp}ºC): **{int(flow['prod_real_dia'])} L/d**")
+                st.write(f"Eficiencia: **{int(ro.eficiencia*100)}%**")
             with c2:
                 if descal:
                     d, dias = descal
-                    st.info(f"**DESCALCIFICADOR: {d.nombre}**")
-                    st.write(f"- Configuración: **{d.tipo}**")
-                    st.write(f"- Regeneración: Cada {dias:.1f} días")
-                else:
-                    st.success("✅ No requiere descalcificador")
-        
-        with tab2:
-            st.metric("Coste Operativo Anual (OPEX)", f"{opex['total']:.2f} €", f"{(opex['total']/365):.2f} €/día")
-            col_eco1, col_eco2, col_eco3 = st.columns(3)
-            col_eco1.metric("Agua", f"{opex['agua']:.0f} €")
-            col_eco2.metric("Sal", f"{opex['sal']:.0f} €")
-            col_eco3.metric("Luz", f"{opex['elec']:.0f} €")
-            st.caption(f"Sal necesaria: {int(opex['kg_sal'])} kg/año")
-            
-        with tab3:
+                    st.warning(f"**🟠 {d.nombre}**")
+                    st.write(f"Resina: **{d.litros_resina}L** ({d.tipo})")
+                    st.write(f"Regeneración: Cada **{dias:.1f} días**")
+
+        with t2:
+            ec1, ec2, ec3 = st.columns(3)
+            ec1.metric("💧 Agua", f"{opex['agua']:.0f} €/año")
+            ec2.metric("🧂 Sal", f"{opex['sal']:.0f} €/año")
+            ec3.metric("⚡ Luz", f"{opex['elec']:.0f} €/año")
+
+        with t3:
             if log["tanque"] > 0:
-                st.warning(f"Necesitas acumulación: {log['msg']}")
-                st.metric("Depósito Recomendado", f"{int(log['tanque'])} Litros")
+                st.error(f"⚠️ {log['msg']}")
+                st.write(f"Instalar depósito de **{int(log['tanque'])} Litros**")
             else:
-                st.success("✅ La máquina cubre la demanda en tiempo real.")
+                st.success("✅ Producción directa suficiente.")
+
+else:
+    st.info("👈 Introduce los datos del cliente para comenzar.")
