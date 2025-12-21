@@ -5,10 +5,10 @@ import plotly.express as px
 import pandas as pd
 
 # ==============================================================================
-# 0. CONFIGURACIÓN
+# 0. CONFIGURACIÓN Y ESTILOS "PREMIUM SUITE"
 # ==============================================================================
 st.set_page_config(
-    page_title="AimyWater V24 Custom Tanks",
+    page_title="AimyWater Suite",
     page_icon="💧",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -17,49 +17,139 @@ st.set_page_config(
 def local_css():
     st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
-        html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-        .stApp { background-color: #f8f9fa; color: #1f2937; }
+        /* IMPORTAR FUENTE MODERNA (OUTFIT) */
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
         
+        /* APLICAR FUENTE GLOBALMENTE */
+        html, body, [class*="css"], [class*="st-"] {
+            font-family: 'Outfit', sans-serif !important;
+        }
+        
+        /* FONDO DE LA APLICACIÓN */
+        .stApp {
+            background-color: #f8fafc; /* Gris muy suave, casi blanco */
+            color: #1e293b;
+        }
+        
+        /* --- SIDEBAR PREMIUM --- */
+        section[data-testid="stSidebar"] {
+            background-color: #ffffff;
+            border-right: 1px solid #e2e8f0;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02);
+        }
+        
+        /* --- TARJETAS MÉTRICAS (KPIs) --- */
         div[data-testid="stMetric"] {
             background-color: #ffffff !important;
-            border: 1px solid #e5e7eb !important;
+            border: 1px solid #f1f5f9 !important;
             padding: 20px !important;
-            border-radius: 12px !important;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border-radius: 16px !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+            transition: all 0.3s ease;
         }
-        div[data-testid="stMetricLabel"] { color: #6b7280 !important; font-weight: 600; font-size: 0.9rem; }
-        div[data-testid="stMetricValue"] { color: #111827 !important; font-size: 1.5rem; }
-        h1, h2, h3 { color: #1e3a8a !important; font-weight: 700; }
         
+        div[data-testid="stMetric"]:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+            border-color: #3b82f6 !important;
+        }
+        
+        div[data-testid="stMetricLabel"] {
+            color: #64748b !important;
+            font-size: 0.85rem !important;
+            font-weight: 600 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        div[data-testid="stMetricValue"] {
+            color: #0f172a !important;
+            font-size: 1.8rem !important;
+            font-weight: 700 !important;
+        }
+        
+        /* --- BOTONES MODERNOS --- */
         div.stButton > button:first-child {
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%) !important;
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
             color: white !important;
-            border-radius: 8px;
-            height: 3.5em;
+            border: none !important;
+            padding: 0.75rem 1.5rem !important;
+            font-size: 1rem !important;
+            font-weight: 600 !important;
+            border-radius: 12px !important;
+            box-shadow: 0 4px 6px rgba(2, 132, 199, 0.25) !important;
+            transition: all 0.3s ease !important;
+            width: 100%;
+        }
+        
+        div.stButton > button:first-child:hover {
+            box-shadow: 0 10px 15px rgba(2, 132, 199, 0.4) !important;
+            transform: translateY(-2px);
+        }
+        
+        div.stButton > button:active {
+            transform: translateY(0);
+        }
+
+        /* --- CONTENEDORES DE DEPÓSITOS (CUSTOM CARDS) --- */
+        .tank-card {
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        
+        .tank-final {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border: 1px solid #bfdbfe;
+            color: #1e3a8a;
+        }
+        
+        .tank-intermedio {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 1px solid #bbf7d0;
+            color: #14532d;
+        }
+        
+        .tank-icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .tank-title { font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; }
+        .tank-value { font-size: 2.2rem; font-weight: 800; margin: 5px 0; }
+        .tank-desc { font-size: 0.85rem; opacity: 0.8; }
+        
+        /* --- HEADERS --- */
+        h1, h2, h3 {
+            color: #0f172a !important;
+            font-weight: 700 !important;
+        }
+        
+        /* --- ALERTS --- */
+        .stAlert {
+            border-radius: 12px !important;
+            border: none !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        /* --- TABS --- */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 24px;
+        }
+        .stTabs [data-baseweb="tab"] {
+            height: 50px;
+            white-space: pre-wrap;
+            border-radius: 4px;
+            color: #64748b;
             font-weight: 600;
-            border: none;
         }
-        
-        .deposito-final {
-            background-color: #eff6ff;
-            border-left: 5px solid #2563eb;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 10px;
+        .stTabs [aria-selected="true"] {
+            color: #0284c7 !important;
+            border-bottom-color: #0284c7 !important;
         }
-        
-        .deposito-intermedio {
-            background-color: #f0fdf4;
-            border-left: 5px solid #16a34a;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-        
-        .tank-title { font-weight: bold; font-size: 1.1em; margin-bottom: 5px; }
-        .tank-vol { font-size: 1.8em; font-weight: 800; }
-        .tank-tag { font-size: 0.8em; color: #666; font-style: italic; }
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -88,7 +178,7 @@ class PreTratamiento:
         self.sal_kg = sal_kg 
         self.tipo_valvula = tipo_valvula 
 
-# CATÁLOGOS
+# CATÁLOGOS (Iguales a V25)
 catalogo_ro = [
     EquipoRO("Doméstico", "PURHOME PLUS", 300, 3000, 0.50, 0.03),
     EquipoRO("Doméstico", "DF 800 UV-LED", 3000, 1500, 0.71, 0.08),
@@ -130,7 +220,7 @@ catalogo_silex = [
 ]
 
 # ==============================================================================
-# 2. GENERADOR PDF
+# 2. GENERADOR PDF (Limpio)
 # ==============================================================================
 
 def generar_pdf_tecnico(modo, ro, descal, carbon, silex, flow, blending_pct, consumo, ppm_in, ppm_out, dureza, alerta, opex, v_deposito_final, v_buffer_intermedio, horas_trabajo, is_manual_final, is_manual_buffer):
@@ -146,7 +236,7 @@ def generar_pdf_tecnico(modo, ro, descal, carbon, silex, flow, blending_pct, con
     pdf.ln(5)
 
     # 1. BASES
-    pdf.set_fill_color(235, 245, 255)
+    pdf.set_fill_color(240, 248, 255) # Azul muy clarito
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(0, 8, "1. BASES DE DISEÑO", 1, 1, 'L', 1)
     pdf.set_font("Arial", size=10)
@@ -185,13 +275,13 @@ def generar_pdf_tecnico(modo, ro, descal, carbon, silex, flow, blending_pct, con
         if silex: pdf.cell(0, 8, f"A. FILTRACION: {silex.nombre} ({silex.medida_botella})", 0, 1)
         if carbon: pdf.cell(0, 8, f"B. DECLORACION: {carbon.nombre} ({carbon.medida_botella})", 0, 1)
         
-        # Buffer en PDF
+        # Buffer
         if v_buffer_intermedio > 0:
             pdf.ln(2)
             pdf.cell(0, 8, f"C. ACUMULACION INTERMEDIA (PRE-RO)", 0, 1)
-            nota_man = "(Seleccion Manual)" if is_manual_buffer else "(Calculado)"
+            nota_buf = "(Manual)" if is_manual_buffer else "(Auto)"
             pdf.cell(10, 8, "", 0, 0)
-            pdf.cell(0, 6, f"Volumen: {int(v_buffer_intermedio)} Litros {nota_man}", 0, 1)
+            pdf.cell(0, 6, f"Volumen: {int(v_buffer_intermedio)} Litros {nota_buf}", 0, 1)
 
         if descal:
             pdf.ln(2)
@@ -210,13 +300,14 @@ def generar_pdf_tecnico(modo, ro, descal, carbon, silex, flow, blending_pct, con
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(0, 8, "3. ALMACENAMIENTO FINAL (PRODUCTO)", 1, 1, 'L', 1)
     pdf.set_font("Arial", size=10)
-    nota_man_fin = "(Seleccion Manual Cliente)" if is_manual_final else "(Calculado 75% Consumo)"
-    pdf.cell(0, 8, f"VOLUMEN DEPÓSITO: {int(v_deposito_final)} LITROS {nota_man_fin}", 0, 1)
+    
+    nota_fin = "(Manual)" if is_manual_final else "(Auto 75% Consumo)"
+    pdf.cell(0, 8, f"VOLUMEN DEPÓSITO: {int(v_deposito_final)} LITROS {nota_fin}", 0, 1)
 
     return pdf.output(dest='S').encode('latin-1')
 
 # ==============================================================================
-# 3. MOTOR LÓGICO V24
+# 3. MOTOR LÓGICO
 # ==============================================================================
 
 def calcular_logica(modo, consumo, ppm_in, ppm_out, dureza, temp, horas, coste_agua, coste_sal, coste_luz, usar_buffer, activar_descal, manual_final_l, manual_buffer_l):
@@ -225,18 +316,18 @@ def calcular_logica(modo, consumo, ppm_in, ppm_out, dureza, temp, horas, coste_a
     flow, opex = {}, {}
     alerta_autonomia = None
     
-    # --- LÓGICA DEPÓSITO FINAL (AUTO vs MANUAL) ---
+    # Depósito Final Híbrido
     if manual_final_l > 0:
         v_deposito_final = manual_final_l
         is_manual_final = True
     else:
-        v_deposito_final = consumo * 0.75 # Auto: 75% del consumo
+        v_deposito_final = consumo * 0.75 # Auto
         is_manual_final = False
 
-    is_manual_buffer = False # Default
+    v_buffer_intermedio = 0
+    is_manual_buffer = False
 
     if modo == "Solo Descalcificación":
-        # Estrategia: Llenado Lento
         caudal_calculo = consumo / horas
         
         if dureza > 0:
@@ -259,7 +350,6 @@ def calcular_logica(modo, consumo, ppm_in, ppm_out, dureza, temp, horas, coste_a
         kg_sal = 0
         if descal_sel: kg_sal = (365 / descal_sel[1]) * descal_sel[0].sal_kg
         opex = {"kg_sal": kg_sal, "coste_sal": kg_sal * coste_sal, "total": kg_sal * coste_sal}
-        v_buffer_intermedio = 0
 
     else:
         # MODO RO
@@ -285,22 +375,17 @@ def calcular_logica(modo, consumo, ppm_in, ppm_out, dureza, temp, horas, coste_a
         if ro_sel:
             agua_entrada_ro = litros_ro_dia / ro_sel.eficiencia
             agua_total = agua_entrada_ro + litros_bypass_dia
-            
             caudal_bomba_ro_lh = (ro_sel.produccion_nominal / 24 / ro_sel.eficiencia) * 1.5 
             
             if usar_buffer:
-                # Si hay buffer, los filtros van lentos
                 caudal_filtros = agua_total / 20 
-                
-                # --- LÓGICA BUFFER (AUTO vs MANUAL) ---
                 if manual_buffer_l > 0:
                     v_buffer_intermedio = manual_buffer_l
                     is_manual_buffer = True
                 else:
-                    v_buffer_intermedio = caudal_bomba_ro_lh * 2 # Auto: 2h de RO
+                    v_buffer_intermedio = caudal_bomba_ro_lh * 2 # Auto
                     is_manual_buffer = False
             else:
-                # Directo: Filtros a velocidad de bomba RO
                 caudal_filtros = caudal_bomba_ro_lh + (litros_bypass_dia / horas)
                 v_buffer_intermedio = 0
 
@@ -352,24 +437,27 @@ def calcular_logica(modo, consumo, ppm_in, ppm_out, dureza, temp, horas, coste_a
     return ro_sel, descal_sel, carbon_sel, silex_sel, flow, opex, alerta_autonomia, v_buffer_intermedio, v_deposito_final, is_manual_final, is_manual_buffer
 
 # ==============================================================================
-# 3. INTERFAZ VISUAL
+# 3. INTERFAZ VISUAL PREMIUM
 # ==============================================================================
 
-col_logo, col_header = st.columns([1, 5])
-with col_logo:
-    try: st.image("logo.png", width=150)
+# Encabezado con Logo y Título
+c_head1, c_head2 = st.columns([1, 5])
+with c_head1:
+    try: st.image("logo.png", width=140)
     except: st.warning("Logo?")
-with col_header:
-    st.title("AimyWater Premium V24")
-    st.markdown("**Plataforma de Ingeniería Hidráulica (Custom Tanks)**")
+with c_head2:
+    st.markdown("## 💧 AimyWater Engineering Suite")
+    st.caption("Plataforma Integral de Dimensionamiento")
 
 st.markdown("---")
 
+# Layout de dos columnas principales: Sidebar izquierda (Inputs) y Main derecha (Outputs)
 with st.sidebar:
-    modo = st.radio("🎛️ Modo", ["Planta Completa (RO)", "Solo Descalcificación"])
+    modo = st.radio("🎛️ MODO DE DISEÑO", ["Planta Completa (RO)", "Solo Descalcificación"])
     st.markdown("---")
     
-    st.header("⚙️ Configuración")
+    st.subheader("⚙️ Configuración")
+    
     with st.expander("1. Hidráulica", expanded=True):
         consumo = st.number_input("Consumo Diario (Litros/24h)", 100, 100000, 2000, step=500)
         horas = st.slider("Horas Trabajo Planta", 1, 24, 20)
@@ -381,14 +469,12 @@ with st.sidebar:
             usar_buffer = False
             activar_descal = True
 
-    # --- NUEVA SECCIÓN: ACUMULACIÓN MANUAL ---
-    with st.expander("2. Acumulación (Depósitos)"):
-        st.caption("Deja en 0 para cálculo automático.")
-        manual_final = st.number_input("Volumen Depósito Final (L)", 0, 50000, 0, step=100)
-        
-        manual_buffer = 0
+    with st.expander("2. Acumulación (Personalizar)", expanded=False):
+        st.info("Dejar en 0 para cálculo automático.")
+        man_final = st.number_input("Depósito Final (L)", 0, 100000, 0, step=100)
+        man_buffer = 0
         if usar_buffer:
-            manual_buffer = st.number_input("Volumen Depósito Intermedio (L)", 0, 50000, 0, step=100)
+            man_buffer = st.number_input("Depósito Intermedio (L)", 0, 100000, 0, step=100)
 
     with st.expander("3. Calidad Agua", expanded=False):
         dureza = st.number_input("Dureza (ºHf)", 0, 100, 35)
@@ -407,101 +493,91 @@ with st.sidebar:
     st.markdown("---")
     btn_calc = st.button("CALCULAR PROYECTO", type="primary")
 
+# --- ÁREA DE RESULTADOS ---
 if btn_calc:
     ro, descal, carbon, silex, flow, opex, alerta, v_buffer, v_producto, is_man_final, is_man_buf = calcular_logica(
-        modo, consumo, ppm_in, ppm_out, dureza, temp, horas, coste_agua, coste_sal, coste_luz, usar_buffer, activar_descal, manual_final, manual_buffer
+        modo, consumo, ppm_in, ppm_out, dureza, temp, horas, coste_agua, coste_sal, coste_luz, usar_buffer, activar_descal, man_final, man_buffer
     )
     
-    # --- VISUALIZACIÓN DEPÓSITOS ---
-    c_dep1, c_dep2 = st.columns(2)
+    # VISUALIZACIÓN VISUAL DE DEPÓSITOS (Estética Premium)
+    col_tanks = st.columns(2)
     
+    # Depósito Intermedio (Solo si existe)
     if v_buffer > 0:
-        with c_dep1:
-            tag = "(MANUAL)" if is_man_buf else "(AUTO)"
+        with col_tanks[0]:
+            tag = "PERSONALIZADO" if is_man_buf else "AUTO"
             st.markdown(f"""
-            <div class='deposito-intermedio'>
-                <div class='tank-title'>🛡️ DEPÓSITO INTERMEDIO (PRE-RO)</div>
-                <div class='tank-vol'>{int(v_buffer)} Litros <span class='tank-tag'>{tag}</span></div>
-                <p>Alimentación a Ósmosis</p>
+            <div class='tank-card tank-intermedio'>
+                <div class='tank-icon'>🛡️</div>
+                <div class='tank-title'>DEPÓSITO INTERMEDIO</div>
+                <div class='tank-value'>{int(v_buffer)} L</div>
+                <div class='tank-desc'>{tag} • Pre-Ósmosis</div>
             </div>""", unsafe_allow_html=True)
     
-    with c_dep2 if v_buffer > 0 else c_dep1:
-        tag_fin = "(MANUAL)" if is_man_final else "(AUTO)"
+    # Depósito Final (Siempre visible)
+    with col_tanks[1] if v_buffer > 0 else col_tanks[0]:
+        tag_fin = "PERSONALIZADO" if is_man_final else "AUTO"
         st.markdown(f"""
-        <div class='deposito-final'>
-            <div class='tank-title'>🛢️ DEPÓSITO FINAL (PRODUCTO)</div>
-            <div class='tank-vol'>{int(v_producto)} Litros <span class='tank-tag'>{tag_fin}</span></div>
-            <p>Suministro a Vivienda/Industria</p>
+        <div class='tank-card tank-final'>
+            <div class='tank-icon'>🛢️</div>
+            <div class='tank-title'>DEPÓSITO FINAL</div>
+            <div class='tank-value'>{int(v_producto)} L</div>
+            <div class='tank-desc'>{tag_fin} • Agua Producto</div>
         </div>""", unsafe_allow_html=True)
     
     st.markdown("---")
 
     if modo == "Solo Descalcificación":
         if descal:
-            st.subheader("✅ Equipo de Descalcificación")
-            c1, c2 = st.columns([1,1])
+            st.subheader("✅ Solución Descalcificación")
+            c1, c2 = st.columns(2)
             with c1:
-                st.info(f"**MODELO: {descal[0].nombre}**")
+                st.metric("Modelo", descal[0].nombre)
                 st.metric("Botella", descal[0].medida_botella)
-                st.metric("Configuración", descal[0].tipo_valvula)
             with c2:
-                if alerta: st.warning(alerta)
-                else: st.success("Autonomía Óptima")
                 st.metric("Regeneración", f"Cada {descal[1]:.1f} días")
-                st.metric("Sal Anual", f"{int(opex['kg_sal'])} Kg")
+                if alerta: st.error(alerta)
+                else: st.success("Autonomía Correcta")
         else:
-            st.error("No se encontró equipo.")
+            st.error("No se encontró equipo adecuado.")
     
     else: # MODO RO
         if not ro:
-            st.error("❌ Sin solución viable.")
+            st.error("❌ No se encontró solución viable (Revisar salinidad o caudal).")
         else:
             st.subheader("📊 Tren de Tratamiento")
             
-            f1, f2, f3, f4 = st.columns(4)
-            with f1:
-                st.markdown("#### 🪨 Silex")
-                if silex: st.caption(f"{silex.medida_botella}")
-            with f2:
-                st.markdown("#### ⚫ Carbón")
-                if carbon: st.caption(f"{carbon.medida_botella}")
-            with f3:
-                st.markdown("#### 🧂 Descal")
-                if descal: st.caption(f"{descal[0].medida_botella}")
-                else: st.caption("No")
-            with f4:
-                st.markdown("#### 💧 Ósmosis")
-                st.caption(f"{ro.nombre}")
+            # KPI Cards
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Ósmosis", ro.nombre)
+            k2.metric("Silex", silex.medida_botella if silex else "N/A")
+            k3.metric("Carbón", carbon.medida_botella if carbon else "N/A")
+            k4.metric("Descal", descal[0].medida_botella if descal else "N/A")
 
-            st.markdown("---")
-
+            # Pestañas de detalle
             tab_tec, tab_fin, tab_doc = st.tabs(["🛠️ Ingeniería", "💸 Financiero", "📄 Documentación"])
             
             with tab_tec:
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.success("Configuración RO")
-                    st.write(f"- Modelo: **{ro.nombre}**")
-                    st.write(f"- Producción 24h: **{int(flow['prod_ro_dia'])} L**")
-                    st.write(f"- Bypass: **{flow['blending_pct']:.1f}%**")
-                with c2:
-                    st.info("Configuración Filtros")
-                    st.write(f"- Caudal Diseño: **{int(flow['caudal_filtros'])} L/h**")
-                    if descal: st.write(f"- Descal: **{descal[0].nombre}**")
+                c_tec1, c_tec2 = st.columns(2)
+                with c_tec1:
+                    st.markdown("**Parámetros de Diseño**")
+                    st.write(f"Producción RO: **{int(flow['prod_ro_dia'])} L/día**")
+                    st.write(f"Mezcla (Bypass): **{flow['blending_pct']:.1f}%**")
+                with c_tec2:
+                    st.markdown("**Caudales**")
+                    st.write(f"Caudal Diseño Filtros: **{int(flow['caudal_filtros'])} L/h**")
             
             with tab_fin:
-                c_chart, c_data = st.columns([2, 1])
-                with c_chart:
-                    data_dict = {
-                        "Concepto": ["Agua", "Sal", "Electricidad"],
-                        "Coste (€)": [opex['coste_agua'], opex['coste_sal'], opex['coste_luz']]
+                c_fin1, c_fin2 = st.columns([2, 1])
+                with c_fin1:
+                    data = {
+                        "Concepto": ["Agua", "Sal", "Luz"],
+                        "Coste": [opex['coste_agua'], opex['coste_sal'], opex['coste_luz']]
                     }
-                    df = pd.DataFrame(data_dict)
-                    fig = px.pie(df, values='Coste (€)', names='Concepto', title='OPEX Anual', hole=0.4)
+                    fig = px.pie(pd.DataFrame(data), values='Coste', names='Concepto', hole=0.5)
                     st.plotly_chart(fig, use_container_width=True)
-                
-                with c_data:
-                    st.metric("Total", f"{(opex['total']/365):.2f} €/día")
+                with c_fin2:
+                    st.metric("OPEX Diario", f"{(opex['total']/365):.2f} €")
 
             with tab_doc:
                 try:
@@ -509,10 +585,10 @@ if btn_calc:
                                                   flow.get('blending_pct', 0), consumo, ppm_in, ppm_out, dureza, alerta, opex, 
                                                   v_producto, v_buffer, horas, is_man_final, is_man_buf)
                     b64 = base64.b64encode(pdf_bytes).decode()
-                    href = f'<a href="data:application/octet-stream;base64,{b64}" download="informe_aimywater.pdf" style="text-decoration:none;"><button style="background-color:#cc0000;color:white;padding:10px;border-radius:5px;border:none;cursor:pointer;width:100%;">📥 Descargar Informe PDF</button></a>'
+                    href = f'<a href="data:application/octet-stream;base64,{b64}" download="informe_aimywater.pdf" style="text-decoration:none;"><button style="background-color:#0284c7;color:white;padding:12px;border-radius:8px;border:none;cursor:pointer;width:100%;font-weight:bold;">📥 Descargar Informe PDF</button></a>'
                     st.markdown(href, unsafe_allow_html=True)
                 except Exception as e:
                     st.error(f"Error PDF: {e}")
 
 else:
-    st.info("👈 Configura tu proyecto.")
+    st.info("👈 Configura los parámetros en el menú lateral.")
