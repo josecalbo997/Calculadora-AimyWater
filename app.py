@@ -1,10 +1,12 @@
 import streamlit as st
+from fpdf import FPDF
+import base64
 
 # ==============================================================================
-# 0. CONFIGURACIÓN E INYECCIÓN DE ESTILOS (HIGH CONTRAST)
+# 0. CONFIGURACIÓN Y ESTILOS
 # ==============================================================================
 st.set_page_config(
-    page_title="AimyWater Pro Calc",
+    page_title="AimyWater Master V14",
     page_icon="💧",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -13,50 +15,41 @@ st.set_page_config(
 def local_css():
     st.markdown("""
     <style>
-        /* FORZAR MODO CLARO Y ALTO CONTRASTE */
-        .stApp {
-            background-color: #ffffff;
-            color: #000000;
-        }
+        .stApp { background-color: #ffffff; color: #000000; }
         
-        /* Tarjetas de Métricas */
+        /* Tarjetas */
         div[data-testid="stMetric"] {
             background-color: #f8f9fa !important;
             border: 1px solid #dee2e6 !important;
-            padding: 15px !important;
+            padding: 10px !important;
             border-radius: 8px !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
-
-        /* Colores de Texto Forzados */
-        div[data-testid="stMetricLabel"] { color: #6c757d !important; font-size: 14px !important; }
-        div[data-testid="stMetricValue"] { color: #003366 !important; font-weight: bold !important; }
         
-        p, h1, h2, h3, h4, h5, li, label { color: #212529 !important; }
+        /* Textos */
+        div[data-testid="stMetricLabel"] { color: #6c757d !important; }
+        div[data-testid="stMetricValue"] { color: #003366 !important; }
         h1, h2, h3 { color: #004d99 !important; }
-
-        /* Botón Principal */
+        
+        /* Botón */
         div.stButton > button:first-child {
             background-color: #004d99 !important;
             color: white !important;
             border-radius: 5px;
             height: 3em;
-            font-weight: 600;
+            font-weight: bold;
             border: none;
         }
         div.stButton > button:first-child:hover {
             background-color: #003366 !important;
         }
-        
-        /* Sidebar */
-        section[data-testid="stSidebar"] { background-color: #f0f2f6 !important; }
     </style>
     """, unsafe_allow_html=True)
 
 local_css()
 
 # ==============================================================================
-# 1. BASE DE DATOS
+# 1. BASE DE DATOS (CLASES Y CATÁLOGOS REALES)
 # ==============================================================================
 
 class EquipoRO:
@@ -68,16 +61,17 @@ class EquipoRO:
         self.eficiencia = eficiencia
         self.potencia_kw = potencia_kw
 
-class Descalcificador:
-    def __init__(self, nombre, litros_resina, caudal_max_m3h, capacidad_intercambio, sal_por_regen_kg, tipo):
+class PreTratamiento:
+    def __init__(self, tipo_equipo, nombre, litros_medio, caudal_max_m3h, capacidad_intercambio=0, sal_kg=0, tipo_valvula=""):
+        self.tipo_equipo = tipo_equipo 
         self.nombre = nombre
-        self.litros_resina = litros_resina
+        self.litros_medio = litros_medio 
         self.caudal_max_m3h = caudal_max_m3h
-        self.capacidad_intercambio = capacidad_intercambio
-        self.sal_por_regen_kg = sal_por_regen_kg
-        self.tipo = tipo
+        self.capacidad_intercambio = capacidad_intercambio 
+        self.sal_kg = sal_kg 
+        self.tipo_valvula = tipo_valvula 
 
-# Catálogos
+# --- 1. CATÁLOGO ÓSMOSIS ---
 catalogo_ro = [
     EquipoRO("Doméstico", "PURHOME PLUS", 300, 3000, 0.50, 0.03),
     EquipoRO("Doméstico", "DF 800 UV-LED", 3000, 1500, 0.71, 0.08),
@@ -89,215 +83,312 @@ catalogo_ro = [
     EquipoRO("Industrial", "AP-6000 LUXE", 18000, 6000, 0.60, 2.2),
 ]
 
+# --- 2. CATÁLOGO DESCALCIFICADORES (Actualizado con Duplex 300L) ---
 catalogo_descal = [
-    Descalcificador("BI BLOC 30L IMPRESSION", 30, 1.8, 192, 4.5, "Simplex"),
-    Descalcificador("BI BLOC 60L IMPRESSION", 60, 3.6, 384, 9.0, "Simplex"),
-    Descalcificador("BI BLOC 100L IMPRESSION", 100, 6.0, 640, 15.0, "Simplex"),
-    Descalcificador("TWIN 40L DF IMPRESSION", 40, 2.4, 256, 6.0, "Duplex"),
-    Descalcificador("TWIN 100L DF IMPRESSION", 100, 6.0, 640, 15.0, "Duplex"),
-    Descalcificador("TWIN 140L DF IMPRESSION", 140, 6.0, 896, 25.0, "Duplex"),
+    PreTratamiento("Descalcificador", "BI BLOC 30L IMPRESSION", 30, 1.8, 192, 4.5, "Simplex"),
+    PreTratamiento("Descalcificador", "BI BLOC 60L IMPRESSION", 60, 3.6, 384, 9.0, "Simplex"),
+    PreTratamiento("Descalcificador", "BI BLOC 100L IMPRESSION", 100, 6.0, 640, 15.0, "Simplex"),
+    PreTratamiento("Descalcificador", "TWIN 40L DF IMPRESSION", 40, 2.4, 256, 6.0, "Duplex"),
+    PreTratamiento("Descalcificador", "TWIN 100L DF IMPRESSION", 100, 6.0, 640, 15.0, "Duplex"),
+    PreTratamiento("Descalcificador", "TWIN 140L DF IMPRESSION", 140, 6.0, 896, 25.0, "Duplex"),
+    # NUEVO EQUIPO AÑADIDO DEL PDF
+    PreTratamiento("Descalcificador", "DUPLEX 300L IMPRESSION 1.5\"", 300, 6.5, 1800, 45.0, "Duplex"),
+]
+
+# --- 3. CATÁLOGO FILTROS CARBÓN (DATOS REALES GRUPAGUA) ---
+catalogo_carbon = [
+    # Datos extraídos de tus PDFs (Caudal muy restrictivo para decloración efectiva)
+    PreTratamiento("Carbon", "DEC 14KG/30L IMPRESSION 1\"", 30, 0.38, 0, 0, "Impression 1\""),
+    PreTratamiento("Carbon", "DEC 22KG/45L IMPRESSION 1\"", 45, 0.72, 0, 0, "Impression 1\""),
+    PreTratamiento("Carbon", "DEC 28KG/60L IMPRESSION 1\"", 60, 0.80, 0, 0, "Impression 1\""),
+    PreTratamiento("Carbon", "DEC 37KG/75L IMPRESSION 1\"", 75, 1.10, 0, 0, "Impression 1\""),
+    PreTratamiento("Carbon", "DEC 90KG IMPRESSION 1 1/4\"", 180, 2.68, 0, 0, "Impression 1 1/4\""),
 ]
 
 # ==============================================================================
-# 2. MOTOR DE CÁLCULO (LÓGICA MODIFICADA 5 DÍAS)
+# 2. MOTOR DE CÁLCULO
 # ==============================================================================
 
-def calcular_sistema(consumo_diario, ppm, dureza, temp, horas_punta, coste_agua, coste_sal, coste_luz):
+def generar_pdf_tecnico(ro, descal, carbon, flow, blending_pct, consumo, ppm_in, ppm_out, dureza):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Logo (si existe)
+    try:
+        pdf.image('logo.png', 10, 8, 33)
+        pdf.ln(20)
+    except:
+        pdf.ln(10)
+
+    # Título
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, "INFORME TÉCNICO DE DIMENSIONAMIENTO", 0, 1, 'C')
+    pdf.set_font("Arial", 'I', 10)
+    pdf.cell(0, 10, "Generado por AimyWater Engineering AI", 0, 1, 'C')
+    pdf.ln(5)
+
+    # Sección 1: Requerimientos
+    pdf.set_fill_color(240, 240, 240)
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(0, 8, "1. DATOS DE PARTIDA", 1, 1, 'L', 1)
+    pdf.set_font("Arial", size=10)
+    pdf.cell(95, 8, f"Consumo Diario: {consumo} L/dia", 1)
+    pdf.cell(95, 8, f"Salinidad Entrada: {ppm_in} ppm", 1, 1)
+    pdf.cell(95, 8, f"Dureza: {dureza} Hf", 1)
+    pdf.cell(95, 8, f"Salinidad Objetivo: {ppm_out} ppm", 1, 1)
+    pdf.ln(5)
+
+    # Sección 2: Solución Propuesta
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(0, 8, "2. EQUIPOS SELECCIONADOS", 1, 1, 'L', 1)
+    
+    # RO
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 8, f"A. OSMOSIS INVERSA: {ro.nombre}", 0, 1)
+    pdf.set_font("Arial", size=10)
+    pdf.cell(10, 8, "", 0, 0)
+    pdf.cell(0, 6, f"- Tecnologia: {ro.categoria} ({ro.potencia_kw} kW)", 0, 1)
+    pdf.cell(10, 8, "", 0, 0)
+    pdf.cell(0, 6, f"- Produccion Nominal: {ro.produccion_nominal} L/dia", 0, 1)
+    pdf.cell(10, 8, "", 0, 0)
+    pdf.cell(0, 6, f"- Produccion Real Calculada: {int(flow['prod_real_dia'])} L/dia", 0, 1)
+    if blending_pct > 0:
+        pdf.cell(10, 8, "", 0, 0)
+        pdf.cell(0, 6, f"- Sistema Blending (Mezcla): {blending_pct:.1f}% ({int(flow['caudal_bypass_dia'])} L/dia)", 0, 1)
+
+    # Pretratamiento
+    pdf.ln(2)
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 8, "B. PRE-TRATAMIENTO", 0, 1)
+    pdf.set_font("Arial", size=10)
+    
+    # Carbon
+    if carbon:
+        pdf.cell(10, 8, "", 0, 0)
+        pdf.cell(0, 6, f"- Decloracion: {carbon.nombre}", 0, 1)
+        pdf.cell(20, 8, "", 0, 0)
+        pdf.cell(0, 6, f"Volumen: {carbon.litros_medio}L | Valvula: {carbon.tipo_valvula}", 0, 1)
+    else:
+        pdf.cell(10, 8, "", 0, 0)
+        pdf.cell(0, 6, "- Decloracion: CONSULTAR (Caudal excesivo para estandar)", 0, 1)
+
+    # Descal
+    if descal:
+        pdf.cell(10, 8, "", 0, 0)
+        pdf.cell(0, 6, f"- Descalcificacion: {descal[0].nombre}", 0, 1)
+        pdf.cell(20, 8, "", 0, 0)
+        pdf.cell(0, 6, f"Config: {descal[0].tipo_valvula} | Regeneracion estimada: cada {descal[1]:.1f} dias", 0, 1)
+    else:
+        pdf.cell(10, 8, "", 0, 0)
+        pdf.cell(0, 6, "- Descalcificacion: No requerida o no seleccionada", 0, 1)
+
+    pdf.ln(5)
+    
+    # Sección 3: Balance
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(0, 8, "3. BALANCE HIDRAULICO", 1, 1, 'L', 1)
+    pdf.set_font("Arial", size=10)
+    pdf.cell(0, 8, f"Caudal Alimentacion Total (Entrada): {int(flow['agua_entrada_total'])} L/dia", 0, 1)
+    pdf.cell(0, 8, f"Caudal Rechazo (Desague): {int(flow['rechazo'])} L/dia", 0, 1)
+    pdf.cell(0, 8, f"Caudal Producto Final: {int(flow['prod_total_dia'])} L/dia", 0, 1)
+
+    return pdf.output(dest='S').encode('latin-1')
+
+def calcular_arquitecto(consumo, ppm_in, ppm_out, dureza, temp, horas, coste_agua, coste_sal, coste_luz):
     tcf = 1.0 if temp >= 25 else max(1.0 - ((25 - temp) * 0.03), 0.1)
     
-    # --- SELECCIÓN RO ---
+    # 1. BLENDING
+    ppm_ro = ppm_in * 0.05
+    if ppm_out < ppm_ro: ppm_out = ppm_ro
+    
+    if ppm_in == ppm_ro:
+        pct_ro = 1.0
+    else:
+        pct_ro = (ppm_in - ppm_out) / (ppm_in - ppm_ro)
+        pct_ro = max(0.0, min(1.0, pct_ro))
+    
+    litros_ro_necesarios = consumo * pct_ro
+    litros_bypass = consumo - litros_ro_necesarios
+
+    # 2. SELECCIÓN RO
     ro_sel = None
-    candidatos_ro = []
+    candidatos = []
     for ro in catalogo_ro:
-        if ppm <= ro.max_ppm:
+        if ppm_in <= ro.max_ppm:
             factor_uso = 1.0 if ro.categoria == "Industrial" else 0.4
             cap_real = ro.produccion_nominal * tcf * factor_uso
-            if cap_real >= consumo_diario:
-                candidatos_ro.append(ro)
+            if cap_real >= litros_ro_necesarios:
+                candidatos.append(ro)
     
-    if candidatos_ro:
-        ro_sel = next((x for x in candidatos_ro if x.categoria == "Industrial"), candidatos_ro[-1]) if consumo_diario > 600 else next((x for x in candidatos_ro if x.categoria == "Doméstico"), candidatos_ro[0])
+    if candidatos:
+        ro_sel = next((x for x in candidatos if x.categoria == "Industrial"), candidatos[-1]) if litros_ro_necesarios > 600 else next((x for x in candidatos if x.categoria == "Doméstico"), candidatos[0])
 
-    # --- SELECCIÓN DESCALCIFICADOR Y FLUJOS ---
     descal_sel = None
+    carbon_sel = None
     flow = {}
     opex = {}
-    logistica = {}
-    alerta_autonomia = None # Nueva variable para avisar si no llegamos a 5 días
-
+    
     if ro_sel:
-        agua_entrada = consumo_diario / ro_sel.eficiencia
-        caudal_prod_lh = (ro_sel.produccion_nominal * tcf) / 24
+        # Balance Hidráulico
+        agua_entrada_ro = litros_ro_necesarios / ro_sel.eficiencia
+        # Caudal punta que traga la RO (L/h)
+        caudal_alim_ro_lh = (ro_sel.produccion_nominal / 24 / ro_sel.eficiencia) * 1.5 
+        # El caudal punta total incluye el bypass si este pasa por el pretratamiento
+        # Asumimos peor caso: Todo el agua pasa por pretratamiento
+        caudal_bypass_lh = litros_bypass / horas
+        caudal_punta_tratamiento_lh = caudal_alim_ro_lh + caudal_bypass_lh
         
+        agua_entrada_total = agua_entrada_ro + litros_bypass
+
         flow = {
-            "entrada": agua_entrada,
-            "rechazo": agua_entrada - consumo_diario,
+            "agua_entrada_total": agua_entrada_total,
+            "prod_ro_dia": litros_ro_necesarios,
+            "caudal_bypass_dia": litros_bypass,
+            "prod_total_dia": consumo,
+            "rechazo": agua_entrada_ro - litros_ro_necesarios,
             "prod_real_dia": ro_sel.produccion_nominal * tcf,
-            "prod_lh": caudal_prod_lh
+            "blending_pct": (litros_bypass / consumo) * 100
         }
 
-        # LÓGICA DESCALCIFICADOR (MODIFICADA: REGLA DE 5 DÍAS)
+        # 3. SELECCIÓN CARBÓN (MÁS ESTRICTO AHORA)
+        cands_carbon = []
+        for c in catalogo_carbon:
+            if (c.caudal_max_m3h * 1000) >= caudal_punta_tratamiento_lh:
+                cands_carbon.append(c)
+        if cands_carbon:
+            # Ordenar por tamaño (menor a mayor)
+            cands_carbon.sort(key=lambda x: x.litros_medio)
+            carbon_sel = cands_carbon[0]
+
+        # 4. SELECCIÓN DESCALCIFICADOR
         if dureza > 5:
-            carga_dia = (agua_entrada / 1000) * dureza
-            caudal_alim_lh = (ro_sel.produccion_nominal / 24 / ro_sel.eficiencia) * 1.5
-            
-            cands_soft_validos = []     # Cumplen > 5 días
-            cands_soft_fallback = []    # No cumplen 5 días pero sirven por caudal (Plan B)
-            
+            carga = (agua_entrada_total / 1000) * dureza
+            cands_soft = []
             es_ind = ro_sel.categoria == "Industrial"
             
             for d in catalogo_descal:
-                # 1. Filtro Hidráulico (Caudal)
-                if (d.caudal_max_m3h * 1000) >= caudal_alim_lh:
-                    
-                    # 2. Cálculo de Autonomía
-                    dias = d.capacidad_intercambio / carga_dia if carga_dia > 0 else 99
-                    
-                    # 3. Clasificación según regla de 5 días
-                    if dias >= 5.0:
-                        cands_soft_validos.append((d, dias))
+                if (d.caudal_max_m3h * 1000) >= caudal_punta_tratamiento_lh:
+                    dias = d.capacidad_intercambio / carga if carga > 0 else 99
+                    viable = False
+                    if es_ind and consumo > 5000:
+                        if "Duplex" in d.tipo_valvula or dias > 1: viable = True
                     else:
-                        cands_soft_fallback.append((d, dias))
+                        if dias >= 0.8: viable = True
+                    if viable: cands_soft.append((d, dias))
             
-            # SELECCIÓN FINAL
-            if cands_soft_validos:
-                # Si hay equipos que aguantan 5 días, cogemos el más pequeño de ellos (más barato)
-                cands_soft_validos.sort(key=lambda x: x[0].litros_resina)
-                descal_sel = cands_soft_validos[0]
-            elif cands_soft_fallback:
-                # Si NINGUNO aguanta 5 días (consumo muy alto), cogemos el MÁS GRANDE disponible
-                # y lanzamos alerta.
-                cands_soft_fallback.sort(key=lambda x: x[0].litros_resina, reverse=True) # El más grande primero
-                descal_sel = cands_soft_fallback[0]
-                alerta_autonomia = f"⚠️ Alto Consumo: Autonomía de {descal_sel[1]:.1f} días (No alcanza 5 días con equipos estándar)."
+            if cands_soft:
+                # Priorizar Duplex si es industrial, luego tamaño
+                cands_soft.sort(key=lambda x: (0 if "Duplex" in x[0].tipo_valvula and es_ind else 1, x[0].litros_medio))
+                descal_sel = cands_soft[0]
 
-        # CÁLCULO OPEX
-        c_agua = (agua_entrada / 1000) * 365 * coste_agua
+        # OPEX
+        c_agua = (agua_entrada_total / 1000) * 365 * coste_agua
         c_sal = 0
         kg_sal = 0
         if descal_sel:
             eq, dias = descal_sel
-            kg_sal = (365 / dias) * eq.sal_por_regen_kg
+            kg_sal = (365 / dias) * eq.sal_kg
             c_sal = kg_sal * coste_sal
         
-        horas_marcha = consumo_diario / caudal_prod_lh
-        c_elec = horas_marcha * ro_sel.potencia_kw * 365 * coste_luz
+        # Horas de la bomba RO (solo el agua que pasa por RO)
+        horas_marcha_ro = litros_ro_necesarios / ((ro_sel.produccion_nominal * tcf)/24)
+        c_elec = horas_marcha_ro * ro_sel.potencia_kw * 365 * coste_luz
         
         opex = {"total": c_agua + c_sal + c_elec, "agua": c_agua, "sal": c_sal, "elec": c_elec, "kg_sal": kg_sal}
 
-        # CÁLCULO LOGÍSTICA
-        demanda_lh = consumo_diario / horas_punta
-        if demanda_lh > caudal_prod_lh:
-            deficit = demanda_lh - caudal_prod_lh
-            logistica = {"tanque": deficit * horas_punta * 1.2, "msg": f"Déficit {int(deficit)} L/h"}
-        else:
-            logistica = {"tanque": 0, "msg": "OK"}
-
-    return ro_sel, descal_sel, flow, opex, logistica, alerta_autonomia
+    return ro_sel, descal_sel, carbon_sel, flow, opex
 
 # ==============================================================================
-# 3. INTERFAZ DE USUARIO
+# 3. INTERFAZ GRÁFICA
 # ==============================================================================
 
-# HEADER
-c1, c2 = st.columns([1, 5])
-with c1:
-    try:
-        st.image("logo.png", width=140)
-    except:
-        st.info("Logotipo")
-with c2:
-    st.title("AimyWater Enterprise")
-    st.markdown("##### Dimensionamiento con Lógica de Ciclo Extendido (5 Días)")
+col_logo, col_header = st.columns([1, 5])
+with col_logo:
+    try: st.image("logo.png", width=150)
+    except: st.warning("Subir logo.png")
+with col_header:
+    st.title("AimyWater Architect V14")
+    st.markdown("**Plataforma de Dimensionamiento con Catálogo Real Grupagua**")
 
-st.divider()
+st.markdown("---")
 
-# SIDEBAR
 with st.sidebar:
-    st.markdown("### ⚙️ Datos del Proyecto")
-    with st.expander("1. Hidráulica", expanded=True):
-        litros = st.number_input("Consumo (L/día)", 100, 50000, 2000, step=100)
-        horas = st.slider("Horas uso", 1, 24, 8)
-    with st.expander("2. Calidad Agua", expanded=True):
-        ppm = st.number_input("TDS (ppm)", 50, 8000, 800)
+    st.header("⚙️ Datos de Entrada")
+    
+    with st.expander("1. Demanda y Calidad", expanded=True):
+        consumo = st.number_input("Caudal Diario (L/día)", 100, 100000, 2000, step=100)
+        horas = st.slider("Horas de Trabajo Disponibles", 1, 24, 8)
+        ppm_in = st.number_input("TDS Entrada (ppm)", 50, 8000, 800)
+        ppm_out = st.slider("TDS Salida Objetivo (Mezcla)", 0, 1000, 50)
         dureza = st.number_input("Dureza (ºHf)", 0, 100, 35)
         temp = st.slider("Temperatura (ºC)", 5, 35, 15)
-    with st.expander("3. Costes (€)"):
+        
+    with st.expander("2. Costes (€)"):
         coste_agua = st.number_input("Agua (€/m3)", 0.0, 10.0, 1.5)
         coste_sal = st.number_input("Sal (€/kg)", 0.0, 5.0, 0.45)
         coste_luz = st.number_input("Luz (€/kWh)", 0.0, 1.0, 0.20)
     
     st.markdown("---")
-    btn_calc = st.button("CALCULAR SOLUCIÓN", use_container_width=True)
+    btn_calc = st.button("CALCULAR SISTEMA COMPLETO", type="primary")
 
-# RESULTADOS
 if btn_calc:
-    ro, descal, flow, opex, log, alerta = calcular_sistema(litros, ppm, dureza, temp, horas, coste_agua, coste_sal, coste_luz)
+    ro, descal, carbon, flow, opex = calcular_arquitecto(consumo, ppm_in, ppm_out, dureza, temp, horas, coste_agua, coste_sal, coste_luz)
     
     if not ro:
-        st.error("❌ **SIN SOLUCIÓN:** Parámetros fuera de rango.")
+        st.error("❌ No se encontró solución viable. Revisa caudales o salinidad.")
     else:
-        # SECCIÓN 1: RECOMENDACIÓN
-        st.subheader("✅ Solución Técnica")
+        # --- ENCABEZADO ---
+        st.subheader("✅ Configuración Recomendada")
         
-        col_main, col_details = st.columns([1.5, 1])
-        
-        with col_main:
-            st.info(f"🔵 **RO: {ro.nombre}**")
-            m1, m2 = st.columns(2)
-            m1.metric("Prod. Real", f"{int(flow['prod_real_dia'])} L/día")
-            m2.metric("Eficiencia", f"{int(ro.eficiencia*100)}%")
-            
-            if descal:
-                d, dias = descal
-                # Cambiamos color de alerta si no llega a 5 días
-                if alerta:
-                    st.error(f"🟠 **PRE: {d.nombre}**")
-                    st.write(alerta)
-                else:
-                    st.warning(f"🟠 **PRE: {d.nombre}**")
-                
-                d1, d2, d3 = st.columns(3)
-                d1.metric("Resina", f"{d.litros_resina} L")
-                d2.metric("Config", d.tipo)
-                # Destacamos la autonomía
-                d3.metric("Autonomía", f"{dias:.1f} días", "Objetivo > 5")
-            else:
-                st.success("🟢 **PRE:** No requerido")
-
-        with col_details:
-            st.markdown("#### 📦 Logística")
-            if log["tanque"] > 0:
-                st.metric("Depósito", f"{int(log['tanque'])} L", "Necesario", delta_color="inverse")
-                st.caption("Para cubrir picos de demanda.")
-            else:
-                st.metric("Depósito", "Directo", "OK")
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Equipo RO", ro.nombre)
+        k2.metric("Producción RO", f"{int(flow['prod_ro_dia'])} L/d")
+        k3.metric("Bypass (Mezcla)", f"{flow['blending_pct']:.1f}%")
+        k4.metric("Consumo Total", f"{int(flow['prod_total_dia'])} L/d")
 
         st.markdown("---")
-
-        # TABS
-        t1, t2, t3 = st.tabs(["💰 Financiero", "⚙️ Balance Hídrico", "📋 Resumen"])
         
-        with t1:
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Agua", f"{opex['agua']:.0f} €/año")
-            c2.metric("Sal", f"{opex['sal']:.0f} €/año")
-            c3.metric("OPEX Total", f"{(opex['total']/365):.2f} €/día")
-            
-        with t2:
-            st.write(f"- Entrada Red: **{int(flow['entrada'])} L/día**")
-            st.write(f"- Producto: **{litros} L/día**")
-            st.write(f"- Rechazo: **{int(flow['rechazo'])} L/día**")
-            
-        with t3:
-            txt = f"""
-            SOLUCIÓN AIMYWATER
-            ------------------
-            RO: {ro.nombre}
-            PRE: {descal[0].nombre if descal else "N/A"}
-               > Autonomía: {descal[1]:.1f} días
-            DEPÓSITO: {int(log['tanque'])} L
-            """
-            st.code(txt)
+        # --- DETALLE ---
+        c1, c2, c3 = st.columns(3)
+        
+        with c1:
+            st.info("🔵 1. ÓSMOSIS INVERSA")
+            st.write(f"**Modelo:** {ro.nombre}")
+            st.write(f"Eficiencia: {int(ro.eficiencia*100)}%")
+            st.write(f"Agua necesaria: {int(flow['agua_entrada_total'])} L/día")
+        
+        with c2:
+            st.success("⚫ 2. DECLORACIÓN")
+            if carbon:
+                st.write(f"**Modelo:** {carbon.nombre}")
+                st.write(f"Volumen Carbón: **{carbon.litros_medio} Kg/L**")
+                st.write(f"Caudal Máx: {carbon.caudal_max_m3h} m³/h")
+                st.caption("Vital para proteger la membrana del cloro.")
+            else:
+                st.error("Caudal excesivo para filtros de carbón estándar. Usar dosificación Bisulfito.")
+
+        with c3:
+            st.warning("🟠 3. DESCALCIFICACIÓN")
+            if descal:
+                d, dias = descal
+                st.write(f"**Modelo:** {d.nombre}")
+                st.write(f"Config: **{d.tipo_valvula}**")
+                st.write(f"Regeneración: Cada **{dias:.1f} días**")
+            else:
+                st.write("No requerida o caudal excesivo.")
+
+        st.markdown("---")
+        
+        # --- DESCARGAS ---
+        col_pdf, col_space = st.columns([1, 4])
+        with col_pdf:
+            try:
+                pdf_bytes = generar_pdf_tecnico(ro, descal, carbon, flow, flow['blending_pct'], consumo, ppm_in, ppm_out, dureza)
+                b64 = base64.b64encode(pdf_bytes).decode()
+                href = f'<a href="data:application/octet-stream;base64,{b64}" download="informe_aimywater.pdf" style="text-decoration:none;"><button style="background-color:#cc0000;color:white;padding:10px;border-radius:5px;border:none;cursor:pointer;width:100%;">📄 Descargar PDF Técnico</button></a>'
+                st.markdown(href, unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Error PDF: {e}")
+
 else:
-    st.info("👈 Introduce datos para calcular.")
+    st.info("👈 Pulsa Calcular para ver la magia.")
