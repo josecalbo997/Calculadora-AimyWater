@@ -240,4 +240,255 @@ def calcular_logica(modo, consumo, ppm_in, ppm_out, dureza, temp, horas, coste_a
                     if dias >= 5.0: cands_validos.append((d, dias))
                     else: cands_fallback.append((d, dias))
             
-            if c
+            if cands_validos:
+                cands_validos.sort(key=lambda x: x[0].medida_botella)
+                descal_sel = cands_validos[0]
+            elif cands_fallback:
+                cands_fallback.sort(key=lambda x: x[0].caudal_max_m3h, reverse=True)
+                descal_sel = cands_fallback[0]
+                alerta_autonomia = f"⚠️ Autonomía: {descal_sel[1]:.1f} días"
+
+        kg_sal = 0
+        if descal_sel: kg_sal = (365 / descal_sel[1]) * descal_sel[0].sal_kg
+        opex = {"kg_sal": kg_sal, "coste_sal": kg_sal * coste_sal, "total": kg_sal * coste_sal}
+
+    else:
+        # MODO RO
+        tcf = 1.0 if temp >= 25 else max(1.0 - ((25 - temp) * 0.03), 0.1)
+        ppm_ro = ppm_in * 0.05
+        if ppm_out < ppm_ro: ppm_out = ppm_ro
+        pct_ro = 1.0 if ppm_in == ppm_ro else (ppm_in - ppm_out) / (ppm_in - ppm_ro)
+        pct_ro = max(0.0, min(1.0, pct_ro))
+        
+        litros_ro_dia = consumo * pct_ro
+        litros_bypass_dia = consumo - litros_ro_dia
+
+        # Selección RO (Producción 24h)
+        candidatos = []
+        for ro in catalogo_ro:
+            if ppm_in <= ro.max_ppm:
+                capacidad_jornada = (ro.produccion_nominal * tcf / 24) * horas
+                if capacidad_jornada >= litros_ro_dia:
+                    candidatos.append(ro)
+        
+        if candidatos:
+            ro_sel = next((x for x in candidatos if x.categoria == "Industrial"), candidatos[-1]) if litros_ro_dia > 600 else next((x for x in candidatos if x.categoria == "Doméstico"), candidatos[0])
+
+        if ro_sel:
+            agua_entrada_ro = litros_ro_dia / ro_sel.eficiencia
+            agua_total = agua_entrada_ro + litros_bypass_dia
+            
+            # Caudal instantáneo que chupa la bomba de RO
+            caudal_bomba_ro_lh = (ro_sel.produccion_nominal / 24 / ro_sel.eficiencia) * 1.5 
+            
+            if usar_buffer_intermedio:
+                # LÓGICA BUFFER ACTIVADA
+                # Filtros trabajan despacio (20h) para llenar el buffer
+                caudal_diseno_filtros = agua_total / 20 
+                # El buffer tiene que aguantar el tirón de la RO
+                v_buffer_intermedio = caudal_bomba_ro_lh * 1.5 # 1.5h de autonomía de bomba
+            else:
+                # LÓGICA DIRECTA
+                # Filtros deben aguantar el tirón directo de la bomba RO
+                caudal_diseno_filtros = caudal_bomba_ro_lh + (litros_bypass_dia / horas)
+                v_buffer_intermedio = 0
+
+            flow = {
+                "prod_ro_dia": litros_ro_dia,
+                "caudal_bypass_dia": litros_bypass_dia,
+                "prod_total_dia": consumo,
+                "blending_pct": (litros_bypass_dia / consumo) * 100,
+                "caudal_filtros": caudal_diseno_filtros
+            }
+
+            # Selección Filtros
+            cands_silex = [s for s in catalogo_silex if (s.caudal_max_m3h * 1000) >= caudal_diseno_filtros]
+            if cands_silex: 
+                cands_silex.sort(key=lambda x: x.caudal_max_m3h)
+                silex_sel = cands_silex[0]
+
+            cands_carbon = [c for c in catalogo_carbon if (c.caudal_max_m3h * 1000) >= caudal_diseno_filtros]
+            if cands_carbon:
+                cands_carbon.sort(key=lambda x: x.caudal_max_m3h)
+                carbon_sel = cands_carbon[0]
+
+            if activar_descal and dureza > 5:
+                carga = (agua_total / 1000) * dureza
+                cands_validos, cands_fallback = [], []
+                for d in catalogo_descal:
+                    if (d.caudal_max_m3h * 1000) >= caudal_diseno_filtros:
+                        dias = d.capacidad_intercambio / carga if carga > 0 else 99
+                        if dias >= 5.0: cands_validos.append((d, dias))
+                        else: cands_fallback.append((d, dias))
+                
+                if cands_validos:
+                    cands_validos.sort(key=lambda x: x[0].medida_botella)
+                    descal_sel = cands_validos[0]
+                elif cands_fallback:
+                    cands_fallback.sort(key=lambda x: x[0].caudal_max_m3h, reverse=True)
+                    descal_sel = cands_fallback[0]
+                    alerta_autonomia = f"⚠️ Autonomía: {descal_sel[1]:.1f} días"
+
+            kg_sal = 0
+            if descal_sel: kg_sal = (365 / descal_sel[1]) * descal_sel[0].sal_kg
+            
+            opex_agua = (agua_total / 1000) * 365 * coste_agua
+            opex_sal = kg_sal * coste_sal
+            horas_ro_reales = litros_ro_dia / ((ro.produccion_nominal * tcf)/24)
+            opex_luz = horas_ro_reales * ro.potencia_kw * 365 * coste_luz
+            
+            opex = {"kg_sal": kg_sal, "coste_agua": opex_agua, "coste_sal": opex_sal, "coste_luz": opex_luz, "total": opex_agua + opex_sal + opex_luz}
+
+    return ro_sel, descal_sel, carbon_sel, silex_sel, flow, opex, alerta_autonomia, v_buffer_intermedio, v_deposito_final
+
+# ==============================================================================
+# 3. INTERFAZ VISUAL
+# ==============================================================================
+
+col_logo, col_header = st.columns([1, 5])
+with col_logo:
+    try: st.image("logo.png", width=150)
+    except: st.warning("Logo?")
+with col_header:
+    st.title("AimyWater Premium V23")
+    st.markdown("**Plataforma de Ingeniería Hidráulica (Arquitectura Doble Depósito)**")
+
+st.markdown("---")
+
+with st.sidebar:
+    modo = st.radio("🎛️ Modo", ["Planta Completa (RO)", "Solo Descalcificación"])
+    st.markdown("---")
+    
+    st.header("⚙️ Parámetros")
+    with st.expander("1. Hidráulica", expanded=True):
+        consumo = st.number_input("Consumo Diario (Litros/24h)", 100, 100000, 2000, step=500)
+        horas = st.slider("Horas Trabajo Planta", 1, 24, 20)
+        
+        if modo == "Planta Completa (RO)":
+            usar_buffer = st.checkbox("Usar Depósito Intermedio (Antes de RO)", value=True, help="Permite filtros más pequeños.")
+            activar_descal = st.checkbox("Incluir Descalcificador", value=True)
+        else:
+            usar_buffer = False
+            activar_descal = True
+
+    with st.expander("2. Calidad Agua", expanded=True):
+        dureza = st.number_input("Dureza (ºHf)", 0, 100, 35)
+        if modo == "Planta Completa (RO)":
+            ppm_in = st.number_input("TDS Entrada", 50, 8000, 800)
+            ppm_out = st.slider("TDS Objetivo", 0, 1000, 50)
+            temp = st.slider("Temp (ºC)", 5, 35, 15)
+        else:
+            ppm_in, ppm_out, temp = 0, 0, 25
+
+    with st.expander("3. Costes"):
+        coste_agua = st.number_input("Agua €/m3", 0.0, 10.0, 1.5)
+        coste_sal = st.number_input("Sal €/kg", 0.0, 5.0, 0.45)
+        coste_luz = st.number_input("Luz €/kWh", 0.0, 1.0, 0.20)
+    
+    st.markdown("---")
+    btn_calc = st.button("CALCULAR PROYECTO", type="primary")
+
+if btn_calc:
+    ro, descal, carbon, silex, flow, opex, alerta, v_buffer, v_producto = calcular_logica(modo, consumo, ppm_in, ppm_out, dureza, temp, horas, coste_agua, coste_sal, coste_luz, usar_buffer, activar_descal)
+    
+    # --- VISUALIZACIÓN DEPÓSITOS ---
+    c_dep1, c_dep2 = st.columns(2)
+    
+    if v_buffer > 0:
+        with c_dep1:
+            st.markdown(f"""
+            <div class='deposito-intermedio'>
+                <div class='tank-title'>🛡️ DEPÓSITO INTERMEDIO (PRE-RO)</div>
+                <div class='tank-vol'>{int(v_buffer)} Litros</div>
+                <p>Permite pre-tratamiento lento y alimentación rápida a RO.</p>
+            </div>""", unsafe_allow_html=True)
+    
+    with c_dep2 if v_buffer > 0 else c_dep1:
+        st.markdown(f"""
+        <div class='deposito-final'>
+            <div class='tank-title'>🛢️ DEPÓSITO FINAL (PRODUCTO)</div>
+            <div class='tank-vol'>{int(v_producto)} Litros</div>
+            <p>Acumulación para consumo de la vivienda.</p>
+        </div>""", unsafe_allow_html=True)
+    
+    st.markdown("---")
+
+    if modo == "Solo Descalcificación":
+        if descal:
+            st.subheader("✅ Equipo de Descalcificación")
+            c1, c2 = st.columns([1,1])
+            with c1:
+                st.info(f"**MODELO: {descal[0].nombre}**")
+                st.metric("Botella", descal[0].medida_botella)
+                st.metric("Configuración", descal[0].tipo_valvula)
+            with c2:
+                if alerta: st.warning(alerta)
+                else: st.success("Autonomía Óptima")
+                st.metric("Regeneración", f"Cada {descal[1]:.1f} días")
+                st.metric("Sal Anual", f"{int(opex['kg_sal'])} Kg")
+        else:
+            st.error("No se encontró equipo.")
+    
+    else: # MODO RO
+        if not ro:
+            st.error("❌ Sin solución viable.")
+        else:
+            st.subheader("📊 Tren de Tratamiento")
+            
+            f1, f2, f3, f4 = st.columns(4)
+            with f1:
+                st.markdown("#### 🪨 Silex")
+                if silex: st.caption(f"{silex.medida_botella}")
+            with f2:
+                st.markdown("#### ⚫ Carbón")
+                if carbon: st.caption(f"{carbon.medida_botella}")
+            with f3:
+                st.markdown("#### 🧂 Descal")
+                if descal: st.caption(f"{descal[0].medida_botella}")
+                else: st.caption("No")
+            with f4:
+                st.markdown("#### 💧 Ósmosis")
+                st.caption(f"{ro.nombre}")
+
+            st.markdown("---")
+
+            tab_tec, tab_fin, tab_doc = st.tabs(["🛠️ Ingeniería", "💸 Financiero", "📄 Documentación"])
+            
+            with tab_tec:
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.success("Configuración RO")
+                    st.write(f"- Modelo: **{ro.nombre}**")
+                    st.write(f"- Producción 24h: **{int(flow['prod_ro_dia'])} L**")
+                    st.write(f"- Bypass: **{flow['blending_pct']:.1f}%**")
+                with c2:
+                    st.info("Configuración Filtros")
+                    st.write(f"- Caudal Diseño: **{int(flow['caudal_filtros'])} L/h**")
+                    if descal: st.write(f"- Descal: **{descal[0].nombre}**")
+            
+            with tab_fin:
+                c_chart, c_data = st.columns([2, 1])
+                with c_chart:
+                    data_dict = {
+                        "Concepto": ["Agua", "Sal", "Electricidad"],
+                        "Coste (€)": [opex['coste_agua'], opex['coste_sal'], opex['coste_luz']]
+                    }
+                    df = pd.DataFrame(data_dict)
+                    fig = px.pie(df, values='Coste (€)', names='Concepto', title='OPEX Anual', hole=0.4)
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with c_data:
+                    st.metric("Total", f"{(opex['total']/365):.2f} €/día")
+
+            with tab_doc:
+                try:
+                    pdf_bytes = generar_pdf_tecnico(modo, ro, descal, carbon, silex, flow, 
+                                                  flow.get('blending_pct', 0), consumo, ppm_in, ppm_out, dureza, alerta, opex, v_producto, v_buffer, horas)
+                    b64 = base64.b64encode(pdf_bytes).decode()
+                    href = f'<a href="data:application/octet-stream;base64,{b64}" download="informe_aimywater.pdf" style="text-decoration:none;"><button style="background-color:#cc0000;color:white;padding:10px;border-radius:5px;border:none;cursor:pointer;width:100%;">📥 Descargar Informe PDF</button></a>'
+                    st.markdown(href, unsafe_allow_html=True)
+                except Exception as e:
+                    st.error(f"Error PDF: {e}")
+
+else:
+    st.info("👈 Configura tu proyecto.")
