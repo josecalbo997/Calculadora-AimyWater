@@ -6,7 +6,7 @@ import pandas as pd
 from supabase import create_client, Client
 import requests
 import tempfile
-import os
+import time
 
 # ==============================================================================
 # 0. CONFIGURACIÓN
@@ -20,8 +20,7 @@ def init_connection():
         url = st.secrets["supabase"]["url"]
         key = st.secrets["supabase"]["key"]
         return create_client(url, key)
-    except:
-        return None
+    except: return None
 
 supabase = init_connection()
 
@@ -30,34 +29,20 @@ def local_css():
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;600&display=swap');
-        
-        html, body, [class*="css"], [data-testid="stAppViewContainer"] {
-            font-family: 'Inter', sans-serif !important; background-color: #0f172a !important; color: #e2e8f0 !important;
-        }
-        
-        /* Branding */
+        html, body, [class*="css"], [data-testid="stAppViewContainer"] { font-family: 'Inter', sans-serif !important; background-color: #0f172a !important; color: #e2e8f0 !important; }
         .brand-logo { font-family: 'Rajdhani', sans-serif; font-size: 2.5rem; font-weight: 700; background: -webkit-linear-gradient(0deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin:0;}
         .brand-sub { font-family: 'Inter', sans-serif; font-size: 0.8rem; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px;}
-        
-        /* Inputs & Sidebar */
         [data-testid="stSidebar"] { background-color: #1e293b !important; border-right: 1px solid #334155; }
         input, .stNumberInput input, .stSelectbox, .stSlider { color: #ffffff !important; background-color: #0f172a !important; border: 1px solid #334155 !important; }
         label { color: #38bdf8 !important; font-weight: 600 !important; }
-        
-        /* Cards */
         div[data-testid="stMetric"] { background-color: #1e293b !important; border: 1px solid #334155 !important; border-radius: 8px !important; }
         div[data-testid="stMetricLabel"] { color: #94a3b8 !important; }
         div[data-testid="stMetricValue"] { color: #ffffff !important; font-family: 'Rajdhani', sans-serif !important; }
-        
-        /* Botones */
         div.stButton > button:first-child { background: linear-gradient(90deg, #0ea5e9 0%, #3b82f6 100%) !important; color: white !important; border: none !important; font-weight: bold !important; border-radius: 6px; }
-        
-        /* Tech Cards */
         .tech-card { background-color: #1e293b; border: 1px solid #334155; border-left: 4px solid #38bdf8; padding: 15px; border-radius: 6px; margin-bottom: 10px; }
         .tech-title { color: #38bdf8; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
         .tech-value { color: white; font-size: 1.3rem; font-weight: 700; font-family: 'Rajdhani', sans-serif; }
         .tech-sub { color: #94a3b8; font-size: 0.8rem; }
-        
         .alert-box { padding: 12px; border-radius: 6px; margin-top: 10px; font-size: 0.9rem; background-color: #422006; border: 1px solid #a16207; color: #fde047; }
         .admin-panel { background-color: #312e81; padding: 15px; border-radius: 8px; border: 1px solid #6366f1; margin-bottom: 20px; }
     </style>
@@ -83,7 +68,7 @@ def check_auth():
         
         if st.button("AUTHENTICATE", type="primary", use_container_width=True):
             if not supabase:
-                st.error("Error conectando con la Base de Datos. Revisa los Secrets.")
+                st.error("Error: Configura los secretos de Supabase.")
                 return
             try:
                 response = supabase.table("usuarios").select("*").eq("username", user).eq("password", pwd).execute()
@@ -92,14 +77,10 @@ def check_auth():
                     if usuario_data["activo"]:
                         st.session_state["auth"] = True
                         st.session_state["user_info"] = usuario_data
-                        st.toast(f"Conectado como: {usuario_data['empresa']}", icon="🚀")
                         st.rerun()
-                    else:
-                        st.error("Licencia expirada.")
-                else:
-                    st.error("Credenciales inválidas.")
-            except Exception as e:
-                st.error(f"Error: {e}")
+                    else: st.error("Licencia expirada.")
+                else: st.error("Credenciales inválidas.")
+            except Exception as e: st.error(f"Error conexión: {e}")
     return False
 
 if not check_auth(): st.stop()
@@ -155,6 +136,7 @@ def calcular(origen, modo, consumo, caudal_punta, ppm, dureza, temp, horas, cost
         factor_recuperacion = 0.8 if ppm > 2500 else 1.0
         q_target = consumo
         ro_cands = [r for r in ro_db if ppm <= r.max_ppm and ((r.produccion_nominal * tcf / 24) * horas) >= q_target]
+        
         if ro_cands:
             res['ro'] = next((r for r in ro_cands if "ALFA" in r.nombre or "AP" in r.nombre), ro_cands[-1]) if q_target > 600 else ro_cands[0]
             res['efi_real'] = res['ro'].eficiencia * factor_recuperacion
@@ -199,16 +181,13 @@ def calcular(origen, modo, consumo, caudal_punta, ppm, dureza, temp, horas, cost
     res['msgs'] = msgs
     return res
 
-# ==============================================================================
-# 3. GENERADOR PDF (LOGO DINÁMICO)
-# ==============================================================================
 def create_pdf(res, inputs, modo, user_data):
     pdf = FPDF()
     pdf.add_page()
     
-    # 1. INTENTAR LOGO PERSONALIZADO (URL)
+    # LOGO DINÁMICO (DESDE URL SUPABASE)
     logo_impreso = False
-    if user_data.get("logo_url") and len(user_data["logo_url"]) > 5:
+    if user_data.get("logo_url") and len(str(user_data["logo_url"])) > 5:
         try:
             response = requests.get(user_data["logo_url"])
             if response.status_code == 200:
@@ -218,26 +197,21 @@ def create_pdf(res, inputs, modo, user_data):
                     logo_impreso = True
         except: pass
     
-    # 2. FALLBACK LOGO DEFAULT (LOCAL)
     if not logo_impreso:
         try: pdf.image('logo.png', 10, 8, 33)
         except: pass
 
     pdf.ln(20)
-    
     def clean(text): return str(text).encode('latin-1', 'replace').decode('latin-1') if text else "N/A"
     
-    # Título personalizado con nombre de empresa
     empresa_nombre = user_data.get("empresa", "HYDROLOGIC").upper()
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(0, 10, clean(f"INFORME TÉCNICO - {empresa_nombre}"), 0, 1, 'C')
     pdf.ln(10)
     
-    # PARAMETROS
     pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, clean("1. PARAMETROS"), 0, 1)
     pdf.set_font("Arial", '', 10); pdf.cell(0, 8, clean(f"Consumo: {inputs['consumo']} L/dia | Punta: {inputs['punta']} L/min"), 0, 1)
     
-    # EQUIPOS
     pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, clean("2. EQUIPOS"), 0, 1)
     pdf.set_font("Arial", '', 10)
     if modo == "Solo Descalcificación":
@@ -252,16 +226,15 @@ def create_pdf(res, inputs, modo, user_data):
     return pdf.output(dest='S').encode('latin-1')
 
 # ==============================================================================
-# 4. INTERFAZ
+# 3. INTERFAZ Y PANEL DE ADMINISTRACIÓN (CON SUBIDA DE ARCHIVOS)
 # ==============================================================================
 c_head1, c_head2 = st.columns([1, 5])
 with c_head1:
-    # Intentar mostrar logo del cliente si existe
-    logo_url = st.session_state["user_info"].get("logo_url")
-    if logo_url: st.image(logo_url, width=120)
-    else: 
-        try: st.image("logo.png", width=120)
-        except: st.warning("Logo?")
+    try:
+        logo_url = st.session_state["user_info"].get("logo_url")
+        if logo_url: st.image(logo_url, width=120)
+        else: st.image("logo.png", width=120)
+    except: st.warning("Logo?")
 
 with c_head2:
     empresa = st.session_state["user_info"].get("empresa", "HYDROLOGIC")
@@ -273,7 +246,7 @@ st.divider()
 col_sb, col_main = st.columns([1, 2.5])
 
 with col_sb:
-    # PANEL ADMIN
+    # --- PANEL ADMIN (CARGA DE LOGOS REAL) ---
     rol = st.session_state["user_info"].get("rol", "cliente")
     if rol == "admin":
         st.markdown("""<div class="admin-panel">👑 <b>PANEL GESTIÓN CLIENTES</b></div>""", unsafe_allow_html=True)
@@ -281,15 +254,37 @@ with col_sb:
             new_user = st.text_input("Usuario (Login)")
             new_pass = st.text_input("Contraseña")
             new_company = st.text_input("Nombre Empresa")
-            new_logo = st.text_input("URL Logo (Opcional)") # NUEVO CAMPO
+            
+            # --- NUEVA LÓGICA DE SUBIDA DE ARCHIVOS ---
+            uploaded_logo = st.file_uploader("Subir Logo (PNG/JPG)", type=['png', 'jpg', 'jpeg'])
+            
             if st.button("➕ Crear Cliente"):
                 try:
+                    final_logo_url = ""
+                    # 1. Subir Logo a Supabase Storage (Si hay archivo)
+                    if uploaded_logo:
+                        file_bytes = uploaded_logo.getvalue()
+                        file_path = f"logos/{new_user}_{int(time.time())}.png"
+                        
+                        # Subir
+                        supabase.storage.from_("logos").upload(file_path, file_bytes, {"content-type": "image/png"})
+                        
+                        # Obtener URL Pública
+                        final_logo_url = supabase.storage.from_("logos").get_public_url(file_path)
+
+                    # 2. Guardar Usuario en DB
                     supabase.table("usuarios").insert({
-                        "username": new_user, "password": new_pass, "empresa": new_company, 
-                        "rol": "cliente", "activo": True, "logo_url": new_logo
+                        "username": new_user, 
+                        "password": new_pass, 
+                        "empresa": new_company, 
+                        "rol": "cliente", 
+                        "activo": True, 
+                        "logo_url": final_logo_url
                     }).execute()
-                    st.success(f"Usuario {new_user} creado!")
-                except Exception as e: st.error(f"Error: {e}")
+                    
+                    st.success(f"Usuario {new_user} creado con Logo!")
+                except Exception as e:
+                    st.error(f"Error al crear: {e}")
         st.markdown("---")
 
     if st.button("Cerrar Sesión"):
@@ -316,27 +311,21 @@ with col_sb:
 if st.session_state.get('run'):
     res = calcular(origen, modo, consumo, caudal_punta, ppm, dureza, temp, horas, costes, buffer, descal, mf, mb)
     if res.get('ro') or res.get('descal'):
-        # VISUALIZACIÓN DASHBOARD
-        # ... (Uso la visualización de V50 para brevedad, pero con datos actualizados) ...
-        # ... Aquí irían las tarjetas y gráficos ...
-        
-        # BOTÓN PDF
-        try:
-            inputs_pdf = {'consumo': consumo, 'horas': horas, 'origen': origen, 'ppm': ppm, 'dureza': dureza, 'punta': caudal_punta}
-            # Pasamos todos los datos del usuario actual al generador de PDF
-            pdf_data = create_pdf(res, inputs_pdf, modo, st.session_state["user_info"])
-            b64 = base64.b64encode(pdf_data).decode()
-            col_main.markdown(f'<a href="data:application/octet-stream;base64,{b64}" download="informe_{empresa}.pdf"><button style="background:#00e5ff;color:black;width:100%;padding:15px;border:none;border-radius:10px;font-weight:bold;">📥 DESCARGAR INFORME {empresa.upper()}</button></a>', unsafe_allow_html=True)
-        except Exception as e:
-            col_main.error(f"Error PDF: {e}")
-            
-        # RESTO DE VISUALIZACIÓN (Resumida para copiar/pegar fácil)
         col_main.subheader("⚡ Equipos Seleccionados")
         k1, k2, k3 = col_main.columns(3)
         if res.get('ro'): k1.metric("Ósmosis", res['ro'].nombre)
         elif res.get('descal'): k1.metric("Equipo Principal", res['descal'].nombre)
         if res.get('descal'): k2.metric("Descalcificador", f"{res['descal'].medida_botella}")
         k3.metric("Tubería", res['tuberia'])
+        
+        col_main.markdown("---")
+        try:
+            inputs_pdf = {'consumo': consumo, 'horas': horas, 'origen': origen, 'ppm': ppm, 'dureza': dureza, 'punta': caudal_punta}
+            pdf_data = create_pdf(res, inputs_pdf, modo, st.session_state["user_info"])
+            b64 = base64.b64encode(pdf_data).decode()
+            col_main.markdown(f'<a href="data:application/octet-stream;base64,{b64}" download="informe_{empresa}.pdf"><button style="background:#00e5ff;color:black;width:100%;padding:15px;border:none;border-radius:10px;font-weight:bold;">📥 DESCARGAR INFORME {empresa.upper()}</button></a>', unsafe_allow_html=True)
+        except Exception as e:
+            col_main.error(f"Error PDF: {e}")
     else:
         col_main.error("Sin solución estándar.")
 else:
