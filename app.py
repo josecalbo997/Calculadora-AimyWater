@@ -41,12 +41,13 @@ def local_css():
         .tech-value { color: white; font-size: 1.3rem; font-weight: 700; font-family: 'Rajdhani', sans-serif; }
         .tech-sub { color: #94a3b8; font-size: 0.8rem; }
         .alert-box { padding: 12px; border-radius: 6px; margin-top: 10px; font-size: 0.9rem; background-color: #422006; border: 1px solid #a16207; color: #fde047; }
+        .admin-panel { background-color: #312e81; padding: 15px; border-radius: 8px; border: 1px solid #6366f1; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 local_css()
 
 # ==============================================================================
-# 1. LOGIN CON SUPABASE
+# 1. LOGIN
 # ==============================================================================
 def check_auth():
     if "auth" not in st.session_state: st.session_state["auth"] = False
@@ -56,41 +57,32 @@ def check_auth():
     with c2:
         st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
         st.markdown('<p class="brand-logo">HYDROLOGIC</p>', unsafe_allow_html=True)
-        st.markdown('<p class="brand-sub">CLOUD ENGINEERING ACCESS</p>', unsafe_allow_html=True)
+        st.markdown('<p class="brand-sub">ENGINEERING ACCESS</p>', unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
         
         user = st.text_input("User ID")
         pwd = st.text_input("Password", type="password")
         
-        if st.button("AUTHENTICATE", type="primary", use_container_width=True):
+        if st.button("LOGIN", type="primary", use_container_width=True):
             try:
-                # Consulta a Supabase
                 response = supabase.table("usuarios").select("*").eq("username", user).eq("password", pwd).execute()
-                
                 if len(response.data) > 0:
                     usuario_data = response.data[0]
                     if usuario_data["activo"]:
                         st.session_state["auth"] = True
-                        st.session_state["user_info"] = usuario_data # Guardamos datos del usuario
+                        st.session_state["user_info"] = usuario_data
                         st.toast(f"Bienvenido, {usuario_data['empresa']}", icon="✅")
                         st.rerun()
-                    else:
-                        st.error("🚫 Tu licencia ha expirado. Contacta con soporte.")
-                else:
-                    st.error("❌ Credenciales inválidas.")
-            except Exception as e:
-                st.error(f"Error de conexión: {e}")
+                    else: st.error("Licencia expirada.")
+                else: st.error("Credenciales incorrectas.")
+            except Exception as e: st.error(f"Error conexión: {e}")
     return False
 
 if not check_auth(): st.stop()
 
 # ==============================================================================
-# 2. LOGICA (Igual a V50 pero preparada para multi-cliente)
+# 2. LÓGICA TÉCNICA (V50)
 # ==============================================================================
-# ... (Aquí irían las clases y catálogos, copiar del código V50 anterior) ...
-# ... (Por brevedad, asumo que copias las clases EquipoRO, Filtro y los catálogos aquí) ...
-# ... (OJO: COPIA LAS CLASES Y CATÁLOGOS DE LA V50 AQUÍ ABAJO) ...
-
 class EquipoRO:
     def __init__(self, n, prod, ppm, ef, kw):
         self.nombre = n; self.produccion_nominal = prod; self.max_ppm = ppm; self.eficiencia = ef; self.potencia_kw = kw
@@ -196,14 +188,45 @@ def create_pdf(res, inputs, modo, empresa_cliente):
     pdf.cell(0, 10, clean(f"INFORME TÉCNICO - {empresa_cliente.upper()}"), 0, 1, 'C')
     pdf.ln(10)
     
-    # ... (Resto del código PDF igual que V50, lo resumo) ...
-    pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, clean("1. PARAMETROS"), 0, 1)
-    pdf.set_font("Arial", '', 10); pdf.cell(0, 8, clean(f"Consumo: {inputs['consumo']} L/dia"), 0, 1)
-    # ... (Añadir resto de lógica PDF V50 aquí) ...
+    # PARAMETROS
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, clean("1. PARAMETROS"), 0, 1)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 8, clean(f"Consumo: {inputs['consumo']} L/dia"), 0, 1)
+    if modo == "Planta Completa (RO)":
+        pdf.cell(0, 8, clean(f"TDS Entrada: {inputs['ppm']} ppm | Dureza: {inputs['dureza']} Hf"), 0, 1)
+    pdf.ln(5)
+    
+    # EQUIPOS
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, clean("2. EQUIPOS SELECCIONADOS"), 0, 1)
+    pdf.set_font("Arial", '', 10)
+    
+    if modo == "Solo Descalcificación":
+        if res.get('descal'):
+            pdf.cell(0, 8, clean(f"DESCAL: {res['descal'].nombre} ({res['descal'].medida_botella})"), 0, 1)
+            pdf.cell(0, 8, clean(f"  Regeneracion: Cada {res['dias']:.1f} dias"), 0, 1)
+    else: 
+        if res.get('silex'): pdf.cell(0, 8, clean(f"A. SILEX: {res['silex'].nombre} ({res['silex'].medida_botella})"), 0, 1)
+        if res.get('carbon'): pdf.cell(0, 8, clean(f"B. CARBON: {res['carbon'].nombre} ({res['carbon'].medida_botella})"), 0, 1)
+        if res.get('v_buffer', 0) > 0: pdf.cell(0, 8, clean(f"C. BUFFER INTERMEDIO: {int(res['v_buffer'])} Litros"), 0, 1)
+        if res.get('descal'): pdf.cell(0, 8, clean(f"D. DESCAL: {res['descal'].nombre} ({res['descal'].medida_botella})"), 0, 1)
+        if res.get('ro'): pdf.cell(0, 8, clean(f"E. OSMOSIS: {res['ro'].nombre} ({res['ro'].produccion_nominal} L/dia)"), 0, 1)
+    
+    # INSTALACION
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, clean("3. REQUISITOS"), 0, 1)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 8, clean(f"DEPOSITO FINAL: {int(res['v_final'])} Litros"), 0, 1)
+    pdf.set_text_color(200, 0, 0)
+    pdf.cell(0, 8, clean(f"ACOMETIDA REQUERIDA: {int(res.get('wash', 0))} L/h a 2.5 bar"), 0, 1)
+    pdf.set_text_color(0,0,0)
+    
     return pdf.output(dest='S').encode('latin-1')
 
 # ==============================================================================
-# 3. INTERFAZ
+# 3. INTERFAZ Y PANEL DE ADMINISTRACIÓN
 # ==============================================================================
 c_head1, c_head2 = st.columns([1, 5])
 with c_head1:
@@ -212,13 +235,36 @@ with c_head1:
 with c_head2:
     empresa = st.session_state.get("user_info", {}).get("empresa", "HYDROLOGIC")
     st.markdown('<p class="brand-logo">HYDROLOGIC</p>', unsafe_allow_html=True)
-    st.markdown(f'<p class="brand-sub">LICENCIA CONCEDIDA A: {empresa}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="brand-sub">LICENCIA: {empresa}</p>', unsafe_allow_html=True)
 
 st.divider()
 
 col_sb, col_main = st.columns([1, 2.5])
 
 with col_sb:
+    # --- PANEL ADMIN (SOLO VISIBLE PARA ADMIN) ---
+    rol = st.session_state.get("user_info", {}).get("rol", "cliente")
+    
+    if rol == "admin":
+        st.markdown("""<div class="admin-panel">👑 <b>PANEL GESTIÓN CLIENTES</b></div>""", unsafe_allow_html=True)
+        with st.expander("Crear Nuevo Usuario"):
+            new_user = st.text_input("Usuario (Login)")
+            new_pass = st.text_input("Contraseña")
+            new_company = st.text_input("Nombre Empresa")
+            if st.button("➕ Crear Cliente"):
+                try:
+                    supabase.table("usuarios").insert({
+                        "username": new_user,
+                        "password": new_pass,
+                        "empresa": new_company,
+                        "rol": "cliente",
+                        "activo": True
+                    }).execute()
+                    st.success(f"Usuario {new_user} creado!")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        st.markdown("---")
+
     if st.button("Cerrar Sesión"):
         st.session_state["auth"] = False
         st.rerun()
@@ -242,15 +288,18 @@ with col_sb:
 if st.session_state.get('run'):
     res = calcular(origen, modo, consumo, caudal_punta, ppm, dureza, temp, horas, costes, buffer, descal, mf, mb)
     if res.get('ro') or res.get('descal'):
-        # ... (Visualización Dashboard V50 igual que antes) ...
-        # ... (Solo pongo el botón PDF actualizado) ...
+        # ... (VISUALIZACIÓN DASHBOARD IGUAL QUE V50) ...
+        # ... (Solo cambia la llamada al PDF para pasar 'empresa') ...
         try:
             inputs_pdf = {'consumo': consumo, 'horas': horas, 'origen': origen, 'ppm': ppm, 'dureza': dureza, 'punta': caudal_punta}
             pdf_data = create_pdf(res, inputs_pdf, modo, empresa)
             b64 = base64.b64encode(pdf_data).decode()
-            col_main.markdown(f'<a href="data:application/octet-stream;base64,{b64}" download="informe_{empresa}.pdf"><button style="background:#00e5ff;color:black;width:100%;padding:15px;border:none;border-radius:10px;font-weight:bold;">📥 DESCARGAR INFORME OFICIAL</button></a>', unsafe_allow_html=True)
+            col_main.markdown(f'<a href="data:application/octet-stream;base64,{b64}" download="informe_{empresa}.pdf"><button style="background:#00e5ff;color:black;width:100%;padding:15px;border:none;border-radius:10px;font-weight:bold;">📥 DESCARGAR INFORME {empresa.upper()}</button></a>', unsafe_allow_html=True)
         except Exception as e:
             col_main.error(f"Error PDF: {e}")
+            
+        # [AQUÍ IRÍA EL RESTO DE TU CÓDIGO DE VISUALIZACIÓN DE GRÁFICOS Y TARJETAS V50]
+        # (He resumido para no repetir, usa el bloque de visualización de V50 pero con este cambio en el PDF)
     else:
         col_main.error("Sin solución estándar.")
 else:
