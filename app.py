@@ -8,7 +8,7 @@ import requests
 import tempfile
 
 # ==============================================================================
-# 0. CONFIGURACIÓN E INYECCIÓN DE ESTILOS "PLATINUM"
+# 0. CONFIGURACIÓN E INYECCIÓN DE ESTILOS
 # ==============================================================================
 st.set_page_config(
     page_title="HYDROLOGIC | Engineering Suite",
@@ -163,7 +163,7 @@ def check_auth():
 if not check_auth(): st.stop()
 
 # ==============================================================================
-# 2. LÓGICA Y DATOS
+# 2. LÓGICA Y DATOS (CATÁLOGO AMPLIADO)
 # ==============================================================================
 class EquipoRO:
     def __init__(self, n, prod, ppm, ef, kw):
@@ -172,22 +172,61 @@ class Filtro:
     def __init__(self, tipo, n, bot, caud, wash, sal=0, cap=0):
         self.tipo = tipo; self.nombre = n; self.medida_botella = bot; self.caudal_max = caud; self.caudal_wash = wash; self.sal_kg = sal; self.capacidad = cap
 
+# --- CATÁLOGOS ACTUALIZADOS ---
 ro_db = [
-    EquipoRO("PURHOME PLUS", 300, 3000, 0.5, 0.03), EquipoRO("DF 800 UV-LED", 3000, 1500, 0.71, 0.08),
-    EquipoRO("Direct Flow 1200", 4500, 1500, 0.66, 0.10), EquipoRO("ALFA 140", 5000, 2000, 0.5, 0.75),
-    EquipoRO("ALFA 240", 10000, 2000, 0.5, 1.1), EquipoRO("ALFA 440", 20000, 2000, 0.6, 1.1),
+    # DOMESTICO
+    EquipoRO("PURHOME PLUS", 300, 3000, 0.5, 0.03), 
+    EquipoRO("DF 800 UV-LED", 3000, 1500, 0.71, 0.08),
+    EquipoRO("Direct Flow 1200", 4500, 1500, 0.66, 0.10),
+    # INDUSTRIAL BAJA SALINIDAD (ALFA)
+    EquipoRO("ALFA 140", 5000, 2000, 0.5, 0.75),
+    EquipoRO("ALFA 240", 10000, 2000, 0.5, 1.1),
+    EquipoRO("ALFA 340", 15000, 2000, 0.6, 1.5), # AÑADIDO
+    EquipoRO("ALFA 440", 20000, 2000, 0.6, 1.5),
+    EquipoRO("ALFA 540", 25000, 2000, 0.6, 2.2), # AÑADIDO
+    EquipoRO("ALFA 640", 30000, 2000, 0.6, 2.2), # AÑADIDO
+    EquipoRO("ALFA 840 (Custom)", 40000, 2000, 0.7, 3.0), # AÑADIDO (Seguridad)
+    # INDUSTRIAL ALTA SALINIDAD
     EquipoRO("AP-6000 LUXE", 18000, 6000, 0.6, 2.2),
+    EquipoRO("AP-10000 LUXE", 30000, 6000, 0.6, 4.0), # AÑADIDO
 ]
-silex_db = [Filtro("Silex", "SIL 10x35", "10x35", 0.8, 2.0), Filtro("Silex", "SIL 10x44", "10x44", 0.8, 2.0), Filtro("Silex", "SIL 12x48", "12x48", 1.1, 3.0), Filtro("Silex", "SIL 18x65", "18x65", 2.6, 6.0), Filtro("Silex", "SIL 21x60", "21x60", 3.6, 9.0), Filtro("Silex", "SIL 24x69", "24x69", 4.4, 12.0), Filtro("Silex", "SIL 30x72", "30x72", 7.0, 18.0), Filtro("Silex", "SIL 36x72", "36x72", 10.0, 25.0)]
-carbon_db = [Filtro("Carbon", "DEC 30L", "10x35", 0.38, 1.5), Filtro("Carbon", "DEC 45L", "10x54", 0.72, 2.0), Filtro("Carbon", "DEC 60L", "12x48", 0.80, 2.5), Filtro("Carbon", "DEC 75L", "13x54", 1.10, 3.5), Filtro("Carbon", "DEC 90KG", "18x65", 2.68, 6.0)]
-descal_db = [Filtro("Descal", "BI BLOC 30L", "10x35", 1.8, 2.0, 4.5, 192), Filtro("Descal", "BI BLOC 60L", "12x48", 3.6, 3.5, 9.0, 384), Filtro("Descal", "TWIN 40L", "10x44", 2.4, 2.5, 6.0, 256), Filtro("Descal", "TWIN 100L", "14x65", 6.0, 5.0, 15.0, 640), Filtro("Descal", "DUPLEX 300L", "24x69", 6.5, 9.0, 45.0, 1800)]
+
+silex_db = [
+    Filtro("Silex", "SIL 10x35", "10x35", 0.8, 2.0), 
+    Filtro("Silex", "SIL 10x44", "10x44", 0.8, 2.0), 
+    Filtro("Silex", "SIL 12x48", "12x48", 1.1, 3.0), 
+    Filtro("Silex", "SIL 18x65", "18x65", 2.6, 6.0), 
+    Filtro("Silex", "SIL 21x60", "21x60", 3.6, 9.0), 
+    Filtro("Silex", "SIL 24x69", "24x69", 4.4, 12.0), 
+    Filtro("Silex", "SIL 30x72", "30x72", 7.0, 18.0), 
+    Filtro("Silex", "SIL 36x72", "36x72", 10.0, 25.0)
+]
+
+carbon_db = [
+    Filtro("Carbon", "DEC 30L", "10x35", 0.38, 1.5), 
+    Filtro("Carbon", "DEC 45L", "10x54", 0.72, 2.0), 
+    Filtro("Carbon", "DEC 60L", "12x48", 0.80, 2.5), 
+    Filtro("Carbon", "DEC 75L", "13x54", 1.10, 3.5), 
+    Filtro("Carbon", "DEC 90KG", "18x65", 2.68, 6.0),
+    Filtro("Carbon", "DEC 150KG", "21x60", 4.5, 9.0), # AÑADIDO
+    Filtro("Carbon", "DEC 200KG", "24x69", 6.0, 12.0) # AÑADIDO
+]
+
+descal_db = [
+    Filtro("Descal", "BI BLOC 30L", "10x35", 1.8, 2.0, 4.5, 192), 
+    Filtro("Descal", "BI BLOC 60L", "12x48", 3.6, 3.5, 9.0, 384), 
+    Filtro("Descal", "TWIN 40L", "10x44", 2.4, 2.5, 6.0, 256), 
+    Filtro("Descal", "TWIN 100L", "14x65", 6.0, 5.0, 15.0, 640), 
+    Filtro("Descal", "DUPLEX 300L", "24x69", 6.5, 9.0, 45.0, 1800)
+]
 
 def calcular_tuberia(caudal_lh):
     if caudal_lh < 1500: return '3/4"'
     elif caudal_lh < 3000: return '1"'
     elif caudal_lh < 5000: return '1 1/4"'
     elif caudal_lh < 9000: return '1 1/2"'
-    else: return '2"'
+    elif caudal_lh < 20000: return '2"'
+    else: return '2 1/2"'
 
 def calcular(origen, modo, consumo, caudal_punta, ppm, dureza, temp, horas, costes, buffer_on, descal_on, man_fin, man_buf):
     res = {}
@@ -211,8 +250,11 @@ def calcular(origen, modo, consumo, caudal_punta, ppm, dureza, temp, horas, cost
     else: 
         tcf = 1.0 if temp >= 25 else max(1.0 - ((25 - temp) * 0.03), 0.1)
         factor_recuperacion = 0.8 if ppm > 2500 else 1.0
+        if ppm > 2500: msgs.append("Nota: Eficiencia reducida por alta salinidad.")
+        
         q_target = consumo
         ro_cands = [r for r in ro_db if ppm <= r.max_ppm and ((r.produccion_nominal * tcf / 24) * horas) >= q_target]
+        
         if ro_cands:
             res['ro'] = next((r for r in ro_cands if "ALFA" in r.nombre or "AP" in r.nombre), ro_cands[-1]) if q_target > 600 else ro_cands[0]
             res['efi_real'] = res['ro'].eficiencia * factor_recuperacion
@@ -232,7 +274,7 @@ def calcular(origen, modo, consumo, caudal_punta, ppm, dureza, temp, horas, cost
             res['silex'] = sx_cands[0] if sx_cands else None
             cb_cands = [c for c in carbon_db if (c.caudal_max * 1000) >= q_filtros]
             res['carbon'] = cb_cands[0] if cb_cands else None
-            
+
             if descal_on and dureza > 5:
                 ds = [d for d in descal_db if (d.caudal_max*1000) >= q_filtros]
                 if ds:
@@ -261,7 +303,7 @@ def create_pdf(res, inputs, modo, user_data):
     pdf = FPDF()
     pdf.add_page()
     
-    # LOGO DINÁMICO
+    # 1. LOGO DINÁMICO
     logo_impreso = False
     if user_data.get("logo_url") and len(str(user_data["logo_url"])) > 5:
         try:
@@ -285,11 +327,13 @@ def create_pdf(res, inputs, modo, user_data):
     pdf.cell(0, 10, clean(f"INFORME TÉCNICO - {empresa_nombre}"), 0, 1, 'C')
     pdf.ln(10)
     
+    # PARAMETROS
     pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, clean("1. PARAMETROS"), 0, 1)
     pdf.set_font("Arial", '', 10); pdf.cell(0, 8, clean(f"Consumo: {inputs['consumo']} L/dia | Punta: {inputs['punta']} L/min"), 0, 1)
-    if modo == "Planta Completa (RO)": pdf.cell(0, 8, clean(f"Salinidad: {inputs['ppm']} ppm | Dureza: {inputs['dureza']} Hf"), 0, 1)
+    if modo == "Planta Completa (RO)": pdf.cell(0, 8, clean(f"TDS Entrada: {inputs['ppm']} ppm | Dureza: {inputs['dureza']} Hf"), 0, 1)
     pdf.ln(5)
     
+    # EQUIPOS
     pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, clean("2. EQUIPOS"), 0, 1)
     pdf.set_font("Arial", '', 10)
     if modo == "Solo Descalcificación":
@@ -314,16 +358,16 @@ def create_pdf(res, inputs, modo, user_data):
 # ==============================================================================
 c_head1, c_head2 = st.columns([1, 5])
 with c_head1:
-    logo = st.session_state["user_info"].get("logo_url")
-    if logo: st.image(logo, width=120)
-    else: 
-        try: st.image("logo.png", width=120)
-        except: st.warning("Logo?")
+    try:
+        logo_url = st.session_state["user_info"].get("logo_url")
+        if logo_url: st.image(logo_url, width=120)
+        else: st.image("logo.png", width=120)
+    except: st.warning("Logo?")
 
 with c_head2:
-    emp = st.session_state["user_info"].get("empresa", "HYDROLOGIC")
+    empresa = st.session_state["user_info"].get("empresa", "HYDROLOGIC")
     st.markdown('<p class="brand-logo">HYDROLOGIC</p>', unsafe_allow_html=True)
-    st.markdown(f'<p class="brand-sub">ENGINEERING SUITE | LICENCIA: {emp}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="brand-sub">LICENCIA: {empresa}</p>', unsafe_allow_html=True)
 
 st.divider()
 
@@ -335,9 +379,19 @@ with col_sb:
         st.markdown("""<div class="admin-panel">👑 <b>PANEL GESTIÓN</b></div>""", unsafe_allow_html=True)
         with st.expander("Nuevo Usuario"):
             nu = st.text_input("User"); np = st.text_input("Pass"); nc = st.text_input("Empresa"); nl = st.text_input("Logo URL")
+            # FILE UPLOADER
+            ul = st.file_uploader("O Subir Logo", type=['png','jpg'])
+            
             if st.button("➕ Crear"):
                 try:
-                    supabase.table("usuarios").insert({"username": nu, "password": np, "empresa": nc, "rol": "cliente", "activo": True, "logo_url": nl}).execute()
+                    final_url = nl
+                    if ul:
+                        file_bytes = ul.getvalue()
+                        path = f"logos/{nu}_{int(time.time())}.png"
+                        supabase.storage.from_("logos").upload(path, file_bytes, {"content-type": "image/png"})
+                        final_url = supabase.storage.from_("logos").get_public_url(path)
+                        
+                    supabase.table("usuarios").insert({"username": nu, "password": np, "empresa": nc, "rol": "cliente", "activo": True, "logo_url": final_url}).execute()
                     st.success("Creado!")
                 except Exception as e: st.error(f"Error: {e}")
 
@@ -345,22 +399,22 @@ with col_sb:
     st.subheader("Configuración")
     origen = st.selectbox("Origen", ["Red Pública", "Pozo"])
     modo = st.selectbox("Modo", ["Planta Completa (RO)", "Solo Descalcificación"])
-    consumo = st.number_input("Consumo (L/día)", value=2000, step=100)
-    punta = st.number_input("Caudal Punta (L/min)", value=40)
+    consumo = st.number_input("Consumo Diario (L)", value=2000, step=100)
+    caudal_punta = st.number_input("Caudal Punta (L/min)", value=40)
     horas = st.number_input("Horas Prod", value=20)
-    buffer = st.checkbox("Buffer", value=True) if "RO" in modo else False
-    descal = st.checkbox("Descal", value=True) if "RO" in modo else True
-    ppm = st.number_input("TDS", value=800) if "RO" in modo else 0
-    dureza = st.number_input("Dureza", value=35)
-    temp = st.number_input("Temp", value=15) if "RO" in modo else 25
-    with st.expander("Avanzado"):
-        ca = st.number_input("Agua €", 1.5); cs = st.number_input("Sal €", 0.45); cl = st.number_input("Luz €", 0.20)
-        mf = st.number_input("Dep Final", 0); mb = st.number_input("Buffer", 0)
+    buffer = st.checkbox("Buffer Intermedio", value=True) if "RO" in modo else False
+    descal = st.checkbox("Descalcificador", value=True) if "RO" in modo else True
+    ppm = st.number_input("TDS (ppm)", value=800) if "RO" in modo else 0
+    dureza = st.number_input("Dureza (Hf)", value=35)
+    temp = st.number_input("Temp (C)", value=15) if "RO" in modo else 25
+    with st.expander("Costes / Manual"):
+        ca = st.number_input("Agua €", value=1.5); cs = st.number_input("Sal €", value=0.45); cl = st.number_input("Luz €", value=0.20)
+        mf = st.number_input("Dep Final (L)", value=0); mb = st.number_input("Buffer (L)", value=0)
     costes = {'agua': ca, 'sal': cs, 'luz': cl}
     if st.button("CALCULAR", type="primary", use_container_width=True): st.session_state['run'] = True
 
 if st.session_state.get('run'):
-    res = calcular(origen, modo, consumo, punta, ppm, dureza, temp, horas, costes, buffer, descal, mf, mb)
+    res = calcular(origen, modo, consumo, caudal_punta, ppm, dureza, temp, horas, costes, buffer, descal, mf, mb)
     if res.get('ro') or res.get('descal'):
         for msg in res['msgs']: col_main.markdown(f"<div class='alert-box alert-yellow'>{msg}</div>", unsafe_allow_html=True)
         
@@ -375,10 +429,14 @@ if st.session_state.get('run'):
         col_main.subheader("⚡ Equipos Seleccionados")
         eq1, eq2, eq3, eq4 = col_main.columns(4)
         if modo == "Planta Completa (RO)":
-            if res.get('silex'): eq1.markdown(f"<div class='tech-card'><div class='tech-title'>🪨 SILEX</div><div class='tech-sub'>{res['silex'].medida_botella}</div></div>", unsafe_allow_html=True)
-            if res.get('carbon'): eq2.markdown(f"<div class='tech-card'><div class='tech-title'>⚫ CARBON</div><div class='tech-sub'>{res['carbon'].medida_botella}</div></div>", unsafe_allow_html=True)
-            if res.get('descal'): eq3.markdown(f"<div class='tech-card'><div class='tech-title'>🧂 DESCAL</div><div class='tech-sub'>{res['descal'].medida_botella}</div></div>", unsafe_allow_html=True)
-            eq4.markdown(f"<div class='tech-card' style='border-left-color:#00c6ff'><div class='tech-title'>💧 OSMOSIS</div><div class='tech-sub'>{res['ro'].nombre}</div></div>", unsafe_allow_html=True)
+            with eq1:
+                if res.get('silex'): st.markdown(f"<div class='tech-card'><div class='tech-title'>🪨 SILEX</div><div class='tech-sub'>{res['silex'].medida_botella}</div></div>", unsafe_allow_html=True)
+            with eq2:
+                if res.get('carbon'): st.markdown(f"<div class='tech-card'><div class='tech-title'>⚫ CARBON</div><div class='tech-sub'>{res['carbon'].medida_botella}</div></div>", unsafe_allow_html=True)
+            with eq3:
+                if res.get('descal'): st.markdown(f"<div class='tech-card'><div class='tech-title'>🧂 DESCAL</div><div class='tech-sub'>{res['descal'].medida_botella}</div></div>", unsafe_allow_html=True)
+            with eq4:
+                st.markdown(f"<div class='tech-card' style='border-left-color:#00c6ff'><div class='tech-title'>💧 OSMOSIS</div><div class='tech-sub'>{res['ro'].nombre}</div></div>", unsafe_allow_html=True)
         else:
             eq1.markdown(f"<div class='tech-card'><div class='tech-title'>🧂 DESCAL</div><div class='tech-value'>{res['descal'].nombre}</div><div class='tech-sub'>{res['descal'].medida_botella}</div></div>", unsafe_allow_html=True)
 
