@@ -2,3 +2,4 @@ streamlit
 fpdf
 plotly
 panda
+supabase
